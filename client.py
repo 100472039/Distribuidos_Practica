@@ -1,5 +1,7 @@
 from enum import Enum
 import argparse
+import socket
+import sys 
 
 class client :
 
@@ -19,9 +21,46 @@ class client :
 
 
     @staticmethod
-    def  register(user) :
-        #  Write your code here
-        return client.RC.ERROR
+    def register(user):
+            """
+            This function registers a user by sending their information to a server.
+
+            Args:
+                user (str): The user's information to be sent to the server.
+
+            Returns:
+                int: The return code indicating the status of the registration process.
+            """
+            
+            # Write your code here
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+            arguments = len(sys.argv)
+            if arguments < 3:
+                print('Uso: client_calc  <host> <port>')
+                exit()
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+            server_address = (sys.argv[2], int(sys.argv[4]))
+            print('connecting to {} port {}'.format(*server_address))
+            sock.connect(server_address)
+
+            try:
+
+                sock.sendall(user.encode())
+                sock.sendall(b'\0')
+                sock.sendall(str(b).encode())
+                sock.sendall(b'\0')
+                sock.sendall(str(op).encode())
+                sock.sendall(b'\0')
+
+                res = readNumber(sock)
+                print(res)
+            finally:
+                print('closing socket')
+                sock.close()
+            return client.RC.ERROR
 
    
     @staticmethod
