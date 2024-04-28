@@ -49,6 +49,7 @@ class client :
             try:
 
                 sock.sendall(user.encode())
+                print("hola")
                 sock.sendall(b'\0')
                 sock.sendall(str(b).encode())
                 sock.sendall(b'\0')

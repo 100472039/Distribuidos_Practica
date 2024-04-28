@@ -1,6 +1,50 @@
+#include <pthread.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
+#include "send-recv.h"
 
+// mutex y variables condicionales para proteger la copia del mensaje
+pthread_mutex_t mutex_mensaje;
+pthread_mutex_t mutex_lista1, mutex_lista2;
+int busy = true;
+pthread_cond_t cond_mensaje;
+int iniciado;
 
+int tratar_peticion(int * s){
+	// Declaración de las variables que se van a utilizar
+	int recv_status;
+	int32_t resultado;	
+    int s_local;
+	char op_recibido;
+	int key_recibido;
+	char value1_recibido[256];
+	int N_value2_recibido = 0;
+
+	// Copia la dirección del cliente a local
+    pthread_mutex_lock(&mutex_mensaje);
+	s_local = (* (int *)s);
+	busy = false;
+	pthread_cond_signal(&cond_mensaje);
+	pthread_mutex_unlock(&mutex_mensaje);
+
+	// Recibe el operador del cliente
+	recv_status = recvMessage(s_local, (char *)&op_recibido, sizeof(char));
+	if (recv_status == -1) {
+			perror("Error en recepcion\n");
+			close(s_local);
+			exit(-1);
+	}
+	printf("op_recibido: %d\n", op_recibido);
+	fflush(stdout);
+}
 
 int main(int argc, char *argv[]){  
 	// Declarar las variables para el socket y los hilos
