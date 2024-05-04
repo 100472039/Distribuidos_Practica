@@ -26,8 +26,6 @@ int tratar_peticion(int * s){
     int s_local;
 	char op_recibido;
 	char num_valores;
-	char valor_total;
-	char valor_i;
 	int key_recibido;
 	char value1_recibido[256];
 	int N_value2_recibido = 0;
@@ -51,7 +49,9 @@ int tratar_peticion(int * s){
 	fflush(stdout);
 
 	if (op_recibido == 0){
-		printf("Entra\n");
+		int valor_ascii;
+		char valor_convertido;
+		printf("Realizar registro\n");
 		fflush(stdout);
 		recv_status = recvMessage(s_local, (char *)&num_valores, sizeof(char));			// Indica el total de caracteres que tiene la palabra, cambiar para valores mayores a 10
 		if (recv_status == -1) {
@@ -60,22 +60,25 @@ int tratar_peticion(int * s){
 				exit(-1);
 		}
 		num_valores = num_valores - 48;
+		char valor_total[num_valores];
 		printf("num_valores: %d\n", num_valores);
 		fflush(stdout);
 		for (int i = 0; i < num_valores; i++){
 			printf("Vuelta %d\n", i);
-			recv_status = recvMessage(s_local, (char *)&valor_i, sizeof(char));		// Toma los valores individualmente
+			recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));		// Toma los valores individualmente
 			if (recv_status == -1) {
 					perror("Error en recepcion\n");
 					close(s_local);
 					exit(-1);
 			}
-			valor_total += valor_i;
-			printf("Valor i: %d\n", valor_i);
-			printf("Valor total: %d\n", valor_total);
+			valor_convertido = valor_ascii;
+			valor_total[i] = valor_convertido;
+			printf("Valor i: %d\n", valor_ascii);
+			printf("Valor convertido: %c\n", valor_convertido);
+			printf("Valor total: %c\n", valor_total[i]);
 			fflush(stdout);
 		}
-		printf("Valor total: %d\n", valor_total);
+		printf("Valor total: %s\n", valor_total);
 		fflush(stdout);
 	}
 }
