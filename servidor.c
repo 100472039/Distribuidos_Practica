@@ -22,13 +22,14 @@ int iniciado;
 int tratar_peticion(int * s){
 	// Declaración de las variables que se van a utilizar
 	int recv_status;
-	int32_t resultado;	
+	// int32_t resultado;
     int s_local;
 	char op_recibido;
 	char num_valores;
-	int key_recibido;
-	char value1_recibido[256];
-	int N_value2_recibido = 0;
+	char *valor_total = (char *)malloc(256);
+	// int key_recibido;
+	// char value1_recibido[256];
+	// int N_value2_recibido = 0;
 
 	// Copia la dirección del cliente a local
     pthread_mutex_lock(&mutex_mensaje);
@@ -59,28 +60,28 @@ int tratar_peticion(int * s){
 				close(s_local);
 				exit(-1);
 		}
-		num_valores = num_valores - 48;
-		char valor_total[num_valores];
-		printf("num_valores: %d\n", num_valores);
-		fflush(stdout);
+		num_valores = num_valores - 48;				// Para un número en ascii, se le puede restar 48 y obtienes el caracter numérico correspondiente
 		for (int i = 0; i < num_valores; i++){
-			printf("Vuelta %d\n", i);
 			recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));		// Toma los valores individualmente
 			if (recv_status == -1) {
 					perror("Error en recepcion\n");
 					close(s_local);
 					exit(-1);
 			}
-			valor_convertido = valor_ascii;
+			valor_convertido = valor_ascii;							// Transforma el ascii a número
 			valor_total[i] = valor_convertido;
-			printf("Valor i: %d\n", valor_ascii);
-			printf("Valor convertido: %c\n", valor_convertido);
-			printf("Valor total: %c\n", valor_total[i]);
-			fflush(stdout);
+			// printf("Valor i: %d\n", valor_ascii);
+			// printf("Valor convertido: %c\n", valor_convertido);
+			// printf("Valor total: %c\n", valor_total[i]);
+			// fflush(stdout);
 		}
 		printf("Valor total: %s\n", valor_total);
+		for (int i = 0; i < strlen(valor_total); i++){
+			printf("Valor %d: %d\n", i, valor_total[i]);
+		}
 		fflush(stdout);
 	}
+	return 0;
 }
 
 int main(int argc, char *argv[]){  
