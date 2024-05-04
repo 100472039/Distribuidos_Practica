@@ -28,22 +28,22 @@ int tratar_peticion(int * s){
 	char value1_recibido[256];
 	int N_value2_recibido = 0;
 
-	// Copia la dirección del cliente a local
-    pthread_mutex_lock(&mutex_mensaje);
-	s_local = (* (int *)s);
-	busy = false;
-	pthread_cond_signal(&cond_mensaje);
-	pthread_mutex_unlock(&mutex_mensaje);
+	// // Copia la dirección del cliente a local
+    // pthread_mutex_lock(&mutex_mensaje);
+	// s_local = (* (int *)s);
+	// busy = false;
+	// pthread_cond_signal(&cond_mensaje);
+	// pthread_mutex_unlock(&mutex_mensaje);
 
-	// Recibe el operador del cliente
-	recv_status = recvMessage(s_local, (char *)&op_recibido, sizeof(char));
-	if (recv_status == -1) {
-			perror("Error en recepcion\n");
-			close(s_local);
-			exit(-1);
-	}
-	printf("op_recibido: %d\n", op_recibido);
-	fflush(stdout);
+	// // Recibe el operador del cliente
+	// recv_status = recvMessage(s_local, (char *)&op_recibido, sizeof(char));
+	// if (recv_status == -1) {
+	// 		perror("Error en recepcion\n");
+	// 		close(s_local);
+	// 		exit(-1);
+	// }
+	// printf("op_recibido: %d\n", op_recibido);
+	// fflush(stdout);
 }
 
 int main(int argc, char *argv[]){  

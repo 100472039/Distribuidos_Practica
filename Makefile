@@ -1,14 +1,16 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -pthread -std=c99
+CFLAGS = -Wall
 
-SRCS = servidor.c send-recv.c
-OBJS = $(SRCS:.c=.o)
-TARGET = servidor
+all: servidor
 
-all: $(TARGET)
+servidor: servidor.o
+	$(CC) $(CFLAGS) -o servidor servidor.o -L. -pthread 
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
+servidor.o: servidor.c
+	$(CC) $(CFLAGS) -c servidor.c
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $
+send-recv.o: send-recv.c
+	$(CC) $(CFLAGS) -fPIC -c send-recv.c -o send-recv.o
+
+clean:
+	rm -f cliente servidor *.o
