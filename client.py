@@ -46,22 +46,30 @@ class client :
             print('connecting to {} port {}'.format(*server_address))
             sock.connect(server_address)
             largo = str(len(user))
-            print(largo.encode())
             register_op = "0"
             try:
                 sock.sendall(register_op.encode())
                 sock.sendall(largo.encode())
                 for character in user:
                     sock.sendall(character.encode())
-                print("hola")
                 # sock.sendall(b'\0')
                 # sock.sendall(str(b).encode())
                 # sock.sendall(b'\0')
                 # sock.sendall(str(op).encode())
                 # sock.sendall(b'\0')
 
-                res = readNumber(sock)
-                print(res)
+                # res = readNumber(sock)
+                # print(res)
+                resultado = sock.recv(1024)
+                resultado = resultado.decode()
+
+                print(resultado)
+                if resultado == 0:
+                    print("REGISTER OK")
+                elif resultado == 1:
+                    print("USERNAME IN USE")
+                elif resultado == 2:
+                    print("REGISTER FAIL")
             finally:
                 print('closing socket')
                 sock.close()

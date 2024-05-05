@@ -19,70 +19,123 @@ int busy = true;
 pthread_cond_t cond_mensaje;
 int iniciado;
 
-int tratar_peticion(int * s){
-	// Declaración de las variables que se van a utilizar
-	int recv_status;
-	// int32_t resultado;
+
+
+int tratar_peticion(int *s) {
+    // Declaración de las variables que se van a utilizar
+    int recv_status;
     int s_local;
-	char op_recibido;
-	char num_valores;
-	char *valor_total = (char *)malloc(256);
-	// int key_recibido;
-	// char value1_recibido[256];
-	// int N_value2_recibido = 0;
-
-	// Copia la dirección del cliente a local
+    char op_recibido;
+    char num_valores;
+    char *valor_total = (char *)malloc(256);
+    int devolucion;
+    
     pthread_mutex_lock(&mutex_mensaje);
-	s_local = (* (int *)s);
-	busy = false;
-	pthread_cond_signal(&cond_mensaje);
-	pthread_mutex_unlock(&mutex_mensaje);
+    s_local = (* (int *)s);
+    busy = false;
+    pthread_cond_signal(&cond_mensaje);
+    pthread_mutex_unlock(&mutex_mensaje);
 
-	// Recibe el operador del cliente
-	recv_status = recvMessage(s_local, (char *)&op_recibido, sizeof(char));
-	if (recv_status == -1) {
-			perror("Error en recepcion\n");
-			close(s_local);
-			exit(-1);
-	}
-	op_recibido = op_recibido - 48;			// Transformar ascii a número
-	printf("op_recibido: %d\n", op_recibido);
-	fflush(stdout);
+    // Recibe el operador del cliente
+    recv_status = recvMessage(s_local, (char *)&op_recibido, sizeof(char));
+    if (recv_status == -1) {
+        perror("Error en recepcion\n");
+        close(s_local);
+        exit(-1);
+    }
+    op_recibido = op_recibido - 48;
+    printf("op_recibido: %d\n", op_recibido);
+    fflush(stdout);
 
-	if (op_recibido == 0){
-		int valor_ascii;
-		char valor_convertido;
-		printf("Realizar registro\n");
-		fflush(stdout);
-		recv_status = recvMessage(s_local, (char *)&num_valores, sizeof(char));			// Indica el total de caracteres que tiene la palabra, cambiar para valores mayores a 10
-		if (recv_status == -1) {
-				perror("Error en recepcion\n");
-				close(s_local);
-				exit(-1);
-		}
-		num_valores = num_valores - 48;				// Para un número en ascii, se le puede restar 48 y obtienes el caracter numérico correspondiente
-		for (int i = 0; i < num_valores; i++){
-			recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));		// Toma los valores individualmente
-			if (recv_status == -1) {
-					perror("Error en recepcion\n");
-					close(s_local);
-					exit(-1);
-			}
-			valor_convertido = valor_ascii;							// Transforma el ascii a número
-			valor_total[i] = valor_convertido;
-			// printf("Valor i: %d\n", valor_ascii);
-			// printf("Valor convertido: %c\n", valor_convertido);
-			// printf("Valor total: %c\n", valor_total[i]);
-			// fflush(stdout);
-		}
-		printf("Valor total: %s\n", valor_total);
-		for (int i = 0; i < strlen(valor_total); i++){
-			printf("Valor %d: %d\n", i, valor_total[i]);
-		}
-		fflush(stdout);
-	}
-	return 0;
+    if (op_recibido == 0){
+        int valor_ascii;
+        char valor_convertido;
+        printf("Realizar registro\n");
+        fflush(stdout);
+        recv_status = recvMessage(s_local, (char *)&num_valores, sizeof(char));
+        if (recv_status == -1) {
+            perror("Error en recepcion\n");
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            close(s_local);
+            return -1;
+        }
+        num_valores = num_valores - 48;
+        for (int i = 0; i < num_valores; i++){
+            recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
+            if (recv_status == -1) {
+                perror("Error en recepcion\n");
+                devolucion = 50;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local);
+                return -1;
+            }
+            valor_convertido = valor_ascii;
+            valor_total[i] = valor_convertido;
+        }
+        printf("Valor total: %s\n", valor_total);
+        fflush(stdout);
+
+        // Abrir el archivo de texto para lectura
+        FILE *fp = fopen("usuarios.txt", "r");
+        if (fp == NULL) {
+            perror("Error al abrir el archivo\n");
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            close(s_local);
+            return -1;
+        }
+
+        char nombre_usuario[256];
+        bool usuario_existente = false;
+
+        // Leer el archivo línea por línea y buscar el nombre de usuario
+        while (fgets(nombre_usuario, sizeof(nombre_usuario), fp) != NULL) {
+            // Eliminar el carácter de nueva línea del nombre de usuario leído
+            strtok(nombre_usuario, "\n");
+
+            // Comprobar si el nombre de usuario coincide
+            if (strcmp(nombre_usuario, valor_total) == 0) {
+                usuario_existente = true;
+                break;
+            }
+        }
+
+        // Cerrar el archivo
+        fclose(fp);
+
+        if (usuario_existente) {
+            // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
+            printf("coincide\n");
+            fflush(stdout);
+            devolucion = 49;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+			return -1;
+        } else {
+            // Abrir el archivo de texto para escritura (agregar al final)
+            fp = fopen("usuarios.txt", "a");
+            if (fp == NULL) {
+                perror("Error al abrir el archivo\n");
+                devolucion = 50;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local);
+                return -1;
+            }
+
+            // Escribir el nombre de usuario en el archivo
+            fprintf(fp, "%s\n", valor_total);
+
+            // Cerrar el archivo
+            fclose(fp);
+
+            // Enviar mensaje al cliente de que el registro fue exitoso
+            devolucion = 0;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        }
+    }
+    return 0;
 }
+
 
 int main(int argc, char *argv[]){  
 	// Declarar las variables para el socket y los hilos
