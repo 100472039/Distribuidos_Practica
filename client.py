@@ -49,10 +49,10 @@ class client :
             register_op = "0"
             try:
                 sock.sendall(register_op.encode())
-                sock.sendall(largo.encode())
+                # sock.sendall(largo.encode())
                 for character in user:
                     sock.sendall(character.encode())
-                # sock.sendall(b'\0')
+                sock.sendall(b'\0')
                 # sock.sendall(str(b).encode())
                 # sock.sendall(b'\0')
                 # sock.sendall(str(op).encode())
@@ -64,11 +64,11 @@ class client :
                 resultado = resultado.decode()
 
                 print(resultado)
-                if resultado == 0:
+                if resultado == "0":
                     print("REGISTER OK")
-                elif resultado == 1:
+                elif resultado == "1":
                     print("USERNAME IN USE")
-                elif resultado == 2:
+                elif resultado == "2":
                     print("REGISTER FAIL")
             finally:
                 print('closing socket')
@@ -79,6 +79,43 @@ class client :
     @staticmethod
     def  unregister(user) :
         #  Write your code here
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        arguments = len(sys.argv)
+        if arguments < 3:
+            print('Uso: client_calc  <host> <port>')
+            exit()
+        server_address = (sys.argv[2], int(sys.argv[4]))
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
+        largo = str(len(user))
+        register_op = "1"
+        try:
+            sock.sendall(register_op.encode())
+            sock.sendall(largo.encode())
+            for character in user:
+                sock.sendall(character.encode())
+            # sock.sendall(b'\0')
+            # sock.sendall(str(b).encode())
+            # sock.sendall(b'\0')
+            # sock.sendall(str(op).encode())
+            # sock.sendall(b'\0')
+
+            # res = readNumber(sock)
+            # print(res)
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
+
+            print(resultado)
+            if resultado == "0":
+                print("UNREGISTER OK")
+            elif resultado == "1":
+                print("USER DOES NOT EXIST")
+            elif resultado == "2":
+                print("UNREGISTER FAIL")
+        finally:
+            print('closing socket')
+            sock.close()
         return client.RC.ERROR
 
 

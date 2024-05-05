@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/stat.h>
 
 #include "send-recv.h"
 #include "send-recv.c"
@@ -19,6 +20,18 @@ int busy = true;
 pthread_cond_t cond_mensaje;
 int iniciado;
 
+void crear_directorio_para_usuario(const char *username) {
+    // Crear una cadena para contener la ruta del directorio del usuario
+    char path[256];
+    snprintf(path, sizeof(path), "usuarios/%s", username); // Puedes modificar esto según la estructura de tu directorio
+
+    // Crear el directorio
+    if (mkdir(path, 0700) == 0) {
+        printf("Directorio creado para el usuario %s\n", username);
+    } else {
+        perror("Error al crear el directorio");
+    }
+}
 
 
 int tratar_peticion(int *s) {
@@ -48,6 +61,105 @@ int tratar_peticion(int *s) {
     fflush(stdout);
 
     if (op_recibido == 0){
+        int valor_ascii = 1;
+        char valor_convertido;
+        printf("Realizar registro\n");
+        fflush(stdout);
+        // recv_status = recvMessage(s_local, (char *)&num_valores, sizeof(char));
+        // if (recv_status == -1) {
+        //     perror("Error en recepcion\n");
+        //     devolucion = 50;
+        //     sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        //     close(s_local);
+        //     return -1;
+        // }
+        // num_valores = num_valores - 48;
+        for (int i = 0; valor_ascii != 0; i++){
+            recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
+            if (recv_status == -1) {
+                perror("Error en recepcion\n");
+                devolucion = 50;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local);
+                return -1;
+            }
+            valor_convertido = valor_ascii;
+            valor_total[i] = valor_convertido;
+			// printf("Valor i: %d\n", valor_ascii);
+			// printf("Valor convertido: %c\n", valor_convertido);
+			// printf("Valor total: %c\n", valor_total[i]);
+			fflush(stdout);
+        }
+        printf("Valor total: %s\n", valor_total);
+        fflush(stdout);
+
+        // Abrir el archivo de texto para lectura
+        FILE *fp = fopen("usuarios.txt", "r");
+        if (fp == NULL) {
+            perror("Error al abrir el archivo\n");
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            close(s_local);
+            return -1;
+        }
+
+        char nombre_usuario[256];
+        bool usuario_existente = false;
+
+
+        // Leer el archivo línea por línea y buscar el nombre de usuario
+        while (fgets(nombre_usuario, sizeof(nombre_usuario), fp) != NULL) {
+            // Eliminar el carácter de nueva línea del nombre de usuario leído
+            nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
+
+			
+            // Comprobar si el nombre de usuario coincide
+            if (strcmp(nombre_usuario, valor_total) == 0) {
+                usuario_existente = true;
+                break;
+            }
+        }
+
+
+
+        // Cerrar el archivo
+        fclose(fp);
+
+        if (usuario_existente) {
+            // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
+            printf("coincide\n");
+            fflush(stdout);
+            devolucion = 49;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+			return -1;
+        } else {
+            // Abrir el archivo de texto para escritura (agregar al final)
+            fp = fopen("usuarios.txt", "a");
+            if (fp == NULL) {
+                perror("Error al abrir el archivo\n");
+                devolucion = 50;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local);
+                return -1;
+            }
+
+            // Escribir el nombre de usuario en el archivo
+            fprintf(fp, "%s\n", valor_total);
+
+            // Crear directorio para el usuario
+            crear_directorio_para_usuario(valor_total);
+            // Cerrar el archivo
+            fclose(fp);
+            
+            
+
+            // Enviar mensaje al cliente de que el registro fue exitoso
+            devolucion = 48;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        }
+    }
+
+    if (op_recibido == 1){
         int valor_ascii;
         char valor_convertido;
         printf("Realizar registro\n");
@@ -75,8 +187,6 @@ int tratar_peticion(int *s) {
         }
         printf("Valor total: %s\n", valor_total);
         fflush(stdout);
-
-        // Abrir el archivo de texto para lectura
         FILE *fp = fopen("usuarios.txt", "r");
         if (fp == NULL) {
             perror("Error al abrir el archivo\n");
@@ -89,10 +199,11 @@ int tratar_peticion(int *s) {
         char nombre_usuario[256];
         bool usuario_existente = false;
 
+
         // Leer el archivo línea por línea y buscar el nombre de usuario
         while (fgets(nombre_usuario, sizeof(nombre_usuario), fp) != NULL) {
             // Eliminar el carácter de nueva línea del nombre de usuario leído
-            strtok(nombre_usuario, "\n");
+            nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
 
             // Comprobar si el nombre de usuario coincide
             if (strcmp(nombre_usuario, valor_total) == 0) {
@@ -100,38 +211,23 @@ int tratar_peticion(int *s) {
                 break;
             }
         }
-
-        // Cerrar el archivo
         fclose(fp);
 
         if (usuario_existente) {
             // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
             printf("coincide\n");
             fflush(stdout);
-            devolucion = 49;
-            sendMessage(s_local, (char *)&devolucion, sizeof(char));
-			return -1;
-        } else {
-            // Abrir el archivo de texto para escritura (agregar al final)
-            fp = fopen("usuarios.txt", "a");
-            if (fp == NULL) {
+            FILE *fp_original = fopen("usuarios.txt", "r");
+            if (fp_original == NULL) {
                 perror("Error al abrir el archivo\n");
                 devolucion = 50;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
                 close(s_local);
                 return -1;
             }
-
-            // Escribir el nombre de usuario en el archivo
-            fprintf(fp, "%s\n", valor_total);
-
-            // Cerrar el archivo
-            fclose(fp);
-
-            // Enviar mensaje al cliente de que el registro fue exitoso
-            devolucion = 0;
-            sendMessage(s_local, (char *)&devolucion, sizeof(char));
         }
+
+
     }
     return 0;
 }

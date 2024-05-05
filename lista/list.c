@@ -28,10 +28,11 @@ int registrar(List *l, char *username){
 
 	// Recorre la lista para comprobar si la clave ya existe
 	while (temp != NULL) {
-        if (temp->username == username) {
-            printf("Error: username %d ya está en la lista.\n", username);
+		printf("username nuevo: %s, username en la lista: %s\n", username, temp->username);
+        if (strcmp(temp->username, username) == 0) {
+            printf("Error: username %s ya está en la lista.\n", username);
 			pthread_mutex_unlock(&mutex_lista1);
-            return -1; // La clave ya existe
+            return 1; // La clave ya existe
         }
         temp = temp->next;
     }
@@ -107,22 +108,22 @@ int registrar(List *l, char *username){
 // 	return respuesta;  // Valor no encontrado
 // }	
 
-// int printList(List l){
-// 	List aux;
-// 	aux = l;
+int printList(List l){
+	List aux;
+	aux = l;
 
-// 	// Recorre la lista imprimiendo cada valor
-// 	printf("esta es la lista: \n");
-// 	while(aux != NULL){
-// 		printf("Key=%d    value1=%s	value2=%d\n", aux->key, aux->value1, aux->N_value2);
-// 		for(int i = 0; i<aux->N_value2; i++){
-// 			printf("V_value2[%d]: %f\n", i, aux->V_value2[i]);
-// 		}
-// 		aux = aux->next;
-// 	}
+	// Recorre la lista imprimiendo cada valor
+	printf("esta es la lista: \n");
+	while(aux != NULL){
+		printf("Username=%s    value2=%s\n", aux->username, aux->archivos);
+		for(int i = 0; i < sizeof(aux->archivos); i++){
+			printf("V_value2[%d]: %d\n", i, aux->archivos[i]);
+		}
+		aux = aux->next;
+	}
 	
-// 	return 0;
-// }	
+	return 0;
+}	
 
 // int modify(List *l, int key, char *value1, int N_value2, double *V_value2){
 // 	pthread_mutex_lock(&mutex_lista1);
@@ -195,14 +196,14 @@ int registrar(List *l, char *username){
 // 	return -1;		// Valor no encontrado
 // }	
 
-// int inlist(List *l, int key){
+// int inlist(List *l, int username){
 // 	pthread_mutex_lock(&mutex_lista1); // Bloquea el mutex antes de entrar a la zona crítica
 
 //     List aux = *l;
 // 	// Recorre la lista en busca del valor
 //     while (aux != NULL) {
-//         if (aux->key == key) {
-//             printf("Valor %d encontrado\n", key);
+//         if (aux->username == username) {
+//             printf("Valor %s encontrado\n", username);
 //             pthread_mutex_unlock(&mutex_lista1); // Desbloquea el mutex antes de salir
 //             return 1; // Valor encontrado
 //         } else {
@@ -210,7 +211,7 @@ int registrar(List *l, char *username){
 //         }
 //     }
 
-//     printf("Error: valor %d no encontrado\n", key);
+//     // printf("Error: valor %d no encontrado\n", key);
 //     pthread_mutex_unlock(&mutex_lista1); // Desbloquea el mutex antes de salir
 //     return 0; // Valor no encontrado
 // }
