@@ -33,6 +33,61 @@ void crear_directorio_para_usuario(const char *username) {
     }
 }
 
+void eliminar_usuario(const char *usuario) {
+    // Abre el archivo usuarios.txt en modo de lectura y escritura
+    FILE *archivo = fopen("usuarios.txt", "r+");
+    if (archivo == NULL) {
+        perror("Error al abrir el archivo usuarios.txt");
+        return;
+    }
+
+    // Abre un archivo temporal para escribir los usuarios que no se van a eliminar
+    FILE *temporal = fopen("temporal.txt", "w");
+    if (temporal == NULL) {
+        perror("Error al abrir el archivo temporal.txt");
+        fclose(archivo);
+        return;
+    }
+
+    char nombre_usuario[256];
+    bool encontrado = false;
+
+    // Lee el archivo usuarios.txt línea por línea
+    while (fgets(nombre_usuario, sizeof(nombre_usuario), archivo)) {
+        // Elimina el carácter de nueva línea del nombre de usuario leído
+        nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
+
+        // Comprueba si el nombre de usuario coincide
+        if (strcmp(nombre_usuario, usuario) == 0) {
+            encontrado = true;
+        } else {
+            // Escribe el nombre de usuario en el archivo temporal si no se va a eliminar
+            fprintf(temporal, "%s\n", nombre_usuario);
+        }
+    }
+
+    // Cierra ambos archivos
+    fclose(archivo);
+    fclose(temporal);
+
+    // Elimina el archivo usuarios.txt original
+    if (remove("usuarios.txt") != 0) {
+        perror("Error al eliminar el archivo usuarios.txt");
+        return;
+    }
+
+    // Renombra el archivo temporal.txt como usuarios.txt
+    if (rename("temporal.txt", "usuarios.txt") != 0) {
+        perror("Error al renombrar el archivo temporal.txt");
+        return;
+    }
+
+    if (encontrado) {
+        printf("Usuario \"%s\" eliminado de usuarios.txt\n", usuario);
+    } else {
+        printf("Usuario \"%s\" no encontrado en usuarios.txt\n", usuario);
+    }
+}
 
 int tratar_peticion(int *s) {
     // Declaración de las variables que se van a utilizar
@@ -65,15 +120,6 @@ int tratar_peticion(int *s) {
         char valor_convertido;
         printf("Realizar registro\n");
         fflush(stdout);
-        // recv_status = recvMessage(s_local, (char *)&num_valores, sizeof(char));
-        // if (recv_status == -1) {
-        //     perror("Error en recepcion\n");
-        //     devolucion = 50;
-        //     sendMessage(s_local, (char *)&devolucion, sizeof(char));
-        //     close(s_local);
-        //     return -1;
-        // }
-        // num_valores = num_valores - 48;
         for (int i = 0; valor_ascii != 0; i++){
             recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
             if (recv_status == -1) {
@@ -106,7 +152,6 @@ int tratar_peticion(int *s) {
         char nombre_usuario[256];
         bool usuario_existente = false;
 
-
         // Leer el archivo línea por línea y buscar el nombre de usuario
         while (fgets(nombre_usuario, sizeof(nombre_usuario), fp) != NULL) {
             // Eliminar el carácter de nueva línea del nombre de usuario leído
@@ -119,8 +164,6 @@ int tratar_peticion(int *s) {
                 break;
             }
         }
-
-
 
         // Cerrar el archivo
         fclose(fp);
@@ -150,8 +193,6 @@ int tratar_peticion(int *s) {
             crear_directorio_para_usuario(valor_total);
             // Cerrar el archivo
             fclose(fp);
-            
-            
 
             // Enviar mensaje al cliente de que el registro fue exitoso
             devolucion = 48;
@@ -173,7 +214,7 @@ int tratar_peticion(int *s) {
             return -1;
         }
         num_valores = num_valores - 48;
-        for (int i = 0; i < num_valores; i++){
+        for (int i = 0; valor_ascii != 0; i++){
             recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
             if (recv_status == -1) {
                 perror("Error en recepcion\n");
@@ -187,7 +228,8 @@ int tratar_peticion(int *s) {
         }
         printf("Valor total: %s\n", valor_total);
         fflush(stdout);
-        FILE *fp = fopen("usuarios.txt", "r");
+
+        FILE *fp = fopen("usuarios.txt", "r+");
         if (fp == NULL) {
             perror("Error al abrir el archivo\n");
             devolucion = 50;
@@ -205,32 +247,43 @@ int tratar_peticion(int *s) {
             // Eliminar el carácter de nueva línea del nombre de usuario leído
             nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
 
+			
             // Comprobar si el nombre de usuario coincide
             if (strcmp(nombre_usuario, valor_total) == 0) {
                 usuario_existente = true;
                 break;
             }
         }
+
+        // Cerrar el archivo
         fclose(fp);
 
         if (usuario_existente) {
-            // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
-            printf("coincide\n");
-            fflush(stdout);
-            FILE *fp_original = fopen("usuarios.txt", "r");
-            if (fp_original == NULL) {
-                perror("Error al abrir el archivo\n");
-                devolucion = 50;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                close(s_local);
-                return -1;
+            // Eliminar directorio del usuario
+            char path[256];
+            snprintf(path, sizeof(path), "usuarios/%s", valor_total);
+            if (remove(path) == 0) {
+                printf("Directorio eliminado para el usuario %s\n", valor_total);
+            } else {
+                perror("Error al eliminar el directorio");
             }
+
+            eliminar_usuario(valor_total);
+            // Enviar mensaje al cliente de que el registro fue exitoso
+            devolucion = 48;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        } else {
+            // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
+            devolucion = 49;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;
         }
-
-
     }
+
     return 0;
 }
+
+
 
 
 int main(int argc, char *argv[]){  

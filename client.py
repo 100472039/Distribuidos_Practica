@@ -1,6 +1,7 @@
 from enum import Enum
 import argparse
 import socket
+import threading
 import sys 
 
 class client :
@@ -22,69 +23,49 @@ class client :
 
     @staticmethod
     def register(user):
-            """
-            This function registers a user by sending their information to a server.
-
-            Args:
-                user (str): The user's information to be sent to the server.
-
-            Returns:
-                int: The return code indicating the status of the registration process.
-            """
-            
-            # Write your code here
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-            arguments = len(sys.argv)
-            if arguments < 3:
-                print('Uso: client_calc  <host> <port>')
-                exit()
-
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-            server_address = (sys.argv[2], int(sys.argv[4]))
-            print('connecting to {} port {}'.format(*server_address))
-            sock.connect(server_address)
-            largo = str(len(user))
-            register_op = "0"
-            try:
-                sock.sendall(register_op.encode())
-                # sock.sendall(largo.encode())
-                for character in user:
-                    sock.sendall(character.encode())
-                sock.sendall(b'\0')
-                # sock.sendall(str(b).encode())
-                # sock.sendall(b'\0')
-                # sock.sendall(str(op).encode())
-                # sock.sendall(b'\0')
-
-                # res = readNumber(sock)
-                # print(res)
-                resultado = sock.recv(1024)
-                resultado = resultado.decode()
-
-                print(resultado)
-                if resultado == "0":
-                    print("REGISTER OK")
-                elif resultado == "1":
-                    print("USERNAME IN USE")
-                elif resultado == "2":
-                    print("REGISTER FAIL")
-            finally:
-                print('closing socket')
-                sock.close()
-            return client.RC.ERROR
-
-   
-    @staticmethod
-    def  unregister(user) :
-        #  Write your code here
-
+        # Realizar registro
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
         arguments = len(sys.argv)
         if arguments < 3:
             print('Uso: client_calc  <host> <port>')
             exit()
+
+        server_address = (sys.argv[2], int(sys.argv[4]))
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
+        register_op = "0"
+        try:
+            sock.sendall(register_op.encode())
+            for character in user:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
+
+            if resultado == "0":
+                print("REGISTER OK")
+            elif resultado == "1":
+                print("USERNAME IN USE")
+            elif resultado == "2":
+                print("REGISTER FAIL")
+        finally:
+            print('closing socket')
+            sock.close()
+        return client.RC.ERROR
+
+   
+    @staticmethod
+    def  unregister(user) :
+        # Registrar usuario
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+        arguments = len(sys.argv)
+        if arguments < 3:
+            print('Uso: client_calc  <host> <port>')
+            exit()
+
         server_address = (sys.argv[2], int(sys.argv[4]))
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
@@ -95,14 +76,44 @@ class client :
             sock.sendall(largo.encode())
             for character in user:
                 sock.sendall(character.encode())
-            # sock.sendall(b'\0')
-            # sock.sendall(str(b).encode())
-            # sock.sendall(b'\0')
-            # sock.sendall(str(op).encode())
-            # sock.sendall(b'\0')
+            
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
 
-            # res = readNumber(sock)
-            # print(res)
+            if resultado == "0":
+                print("UNREGISTER OK")
+            elif resultado == "1":
+                print("USER DOES NOT EXIST")
+            elif resultado == "2":
+                print("UNREGISTER FAIL")
+        finally:
+            print('closing socket')
+            sock.close()
+        return client.RC.ERROR
+
+    
+    @staticmethod
+    def  connect(user) :
+        # Conectar usuario
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        arguments = len(sys.argv)
+        if arguments < 3:
+            print('Uso: client_calc  <host> <port>')
+            exit()
+        server_address = (sys.argv[2], int(sys.argv[4]))
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
+        def recibir_contenido():
+            print("thread creado")
+            contenido = sock.recv(1024)
+            print("thread terminado")
+        mi_hilo = threading.Thread(target=recibir_contenido)
+        register_op = "2"
+        try:
+            sock.sendall(register_op.encode())
+            for character in user:
+                sock.sendall(character.encode())
+
             resultado = sock.recv(1024)
             resultado = resultado.decode()
 
@@ -116,13 +127,6 @@ class client :
         finally:
             print('closing socket')
             sock.close()
-        return client.RC.ERROR
-
-
-    
-    @staticmethod
-    def  connect(user) :
-        #  Write your code here
         return client.RC.ERROR
 
 
@@ -258,8 +262,8 @@ class client :
             return False
 
         if ((args.p < 1024) or (args.p > 65535)):
-            parser.error("Error: Port must be in the range 1024 <= port <= 65535");
-            return False;
+            parser.error("Error: Port must be in the range 1024 <= port <= 65535")
+            return False
         
         _server = args.s
         _port = args.p
@@ -273,8 +277,7 @@ class client :
         if (not client.parseArguments(argv)) :
             client.usage()
             return
-
-        #  Write code here
+        
         client.shell()
         print("+++ FINISHED +++")
     
