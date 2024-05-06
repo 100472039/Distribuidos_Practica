@@ -89,6 +89,44 @@ void eliminar_usuario(const char *usuario) {
     }
 }
 
+int comprobar_usuario(char *path, char *usuario){
+    // Abrir el archivo de texto para lectura
+        FILE *fp = fopen(path, "r");
+        if (fp == NULL) {
+            perror("Error al abrir el archivo\n");
+            return -1;
+        }
+
+        char nombre_usuario[256];
+
+        // Leer el archivo línea por línea y buscar el nombre de usuario
+        while (fgets(nombre_usuario, sizeof(nombre_usuario), fp) != NULL) {
+            // Eliminar el carácter de nueva línea del nombre de usuario leído
+            nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
+
+			
+            // Comprobar si el nombre de usuario coincide
+            if (strcmp(nombre_usuario, usuario) == 0) {
+                return 1;
+            }
+        }
+    
+        // Cerrar el archivo
+        fclose(fp);
+        return 0;
+}
+
+int escribir_usuario(char *path, char *usuario){
+    FILE *fp = fopen(path, "a");
+    if (fp == NULL) {
+        perror("Error al abrir el archivo\n");
+        return -1;
+    }
+    fprintf(fp, "%s\n", usuario);
+    fclose(fp);
+    return 0;
+}
+
 int tratar_peticion(int *s) {
     // Declaración de las variables que se van a utilizar
     int recv_status;
@@ -118,6 +156,7 @@ int tratar_peticion(int *s) {
     if (op_recibido == 0){
         int valor_ascii = 1;
         char valor_convertido;
+        int usuario_existente;
         printf("Realizar registro\n");
         fflush(stdout);
         for (int i = 0; valor_ascii != 0; i++){
@@ -139,60 +178,27 @@ int tratar_peticion(int *s) {
         printf("Valor total: %s\n", valor_total);
         fflush(stdout);
 
-        // Abrir el archivo de texto para lectura
-        FILE *fp = fopen("usuarios.txt", "r");
-        if (fp == NULL) {
-            perror("Error al abrir el archivo\n");
-            devolucion = 50;
-            sendMessage(s_local, (char *)&devolucion, sizeof(char));
-            close(s_local);
-            return -1;
-        }
+        usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
 
-        char nombre_usuario[256];
-        bool usuario_existente = false;
-
-        // Leer el archivo línea por línea y buscar el nombre de usuario
-        while (fgets(nombre_usuario, sizeof(nombre_usuario), fp) != NULL) {
-            // Eliminar el carácter de nueva línea del nombre de usuario leído
-            nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
-
-			
-            // Comprobar si el nombre de usuario coincide
-            if (strcmp(nombre_usuario, valor_total) == 0) {
-                usuario_existente = true;
-                break;
-            }
-        }
-
-        // Cerrar el archivo
-        fclose(fp);
-
-        if (usuario_existente) {
+        if (usuario_existente == 1) {
             // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
             printf("coincide\n");
             fflush(stdout);
             devolucion = 49;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
 			return -1;
-        } else {
+        } else if (usuario_existente == 0){
             // Abrir el archivo de texto para escritura (agregar al final)
-            fp = fopen("usuarios.txt", "a");
-            if (fp == NULL) {
-                perror("Error al abrir el archivo\n");
+            int escribir = escribir_usuario("usuarios.txt", valor_total);
+            if (escribir == -1) {
                 devolucion = 50;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
                 close(s_local);
                 return -1;
             }
 
-            // Escribir el nombre de usuario en el archivo
-            fprintf(fp, "%s\n", valor_total);
-
             // Crear directorio para el usuario
             crear_directorio_para_usuario(valor_total);
-            // Cerrar el archivo
-            fclose(fp);
 
             // Enviar mensaje al cliente de que el registro fue exitoso
             devolucion = 48;
@@ -201,19 +207,10 @@ int tratar_peticion(int *s) {
     }
 
     if (op_recibido == 1){
-        int valor_ascii;
+        int valor_ascii = 1;
         char valor_convertido;
-        printf("Realizar registro\n");
+        printf("Realizar baja de registro\n");
         fflush(stdout);
-        recv_status = recvMessage(s_local, (char *)&num_valores, sizeof(char));
-        if (recv_status == -1) {
-            perror("Error en recepcion\n");
-            devolucion = 50;
-            sendMessage(s_local, (char *)&devolucion, sizeof(char));
-            close(s_local);
-            return -1;
-        }
-        num_valores = num_valores - 48;
         for (int i = 0; valor_ascii != 0; i++){
             recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
             if (recv_status == -1) {
@@ -229,36 +226,9 @@ int tratar_peticion(int *s) {
         printf("Valor total: %s\n", valor_total);
         fflush(stdout);
 
-        FILE *fp = fopen("usuarios.txt", "r+");
-        if (fp == NULL) {
-            perror("Error al abrir el archivo\n");
-            devolucion = 50;
-            sendMessage(s_local, (char *)&devolucion, sizeof(char));
-            close(s_local);
-            return -1;
-        }
+        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
 
-        char nombre_usuario[256];
-        bool usuario_existente = false;
-
-
-        // Leer el archivo línea por línea y buscar el nombre de usuario
-        while (fgets(nombre_usuario, sizeof(nombre_usuario), fp) != NULL) {
-            // Eliminar el carácter de nueva línea del nombre de usuario leído
-            nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
-
-			
-            // Comprobar si el nombre de usuario coincide
-            if (strcmp(nombre_usuario, valor_total) == 0) {
-                usuario_existente = true;
-                break;
-            }
-        }
-
-        // Cerrar el archivo
-        fclose(fp);
-
-        if (usuario_existente) {
+        if (usuario_existente == 1) {
             // Eliminar directorio del usuario
             char path[256];
             snprintf(path, sizeof(path), "usuarios/%s", valor_total);
@@ -272,7 +242,7 @@ int tratar_peticion(int *s) {
             // Enviar mensaje al cliente de que el registro fue exitoso
             devolucion = 48;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
-        } else {
+        } else if(usuario_existente == 0){
             // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
             devolucion = 49;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -280,11 +250,58 @@ int tratar_peticion(int *s) {
         }
     }
 
+    if(op_recibido == 2){
+    
+        int valor_ascii = 1;
+        char valor_convertido;
+        printf("Realizar conexión\n");
+        fflush(stdout);
+        for (int i = 0; valor_ascii != 0; i++){
+            recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
+            if (recv_status == -1) {
+                perror("Error en recepcion\n");
+                devolucion = 50;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local);
+                return -1;
+            }
+            valor_convertido = valor_ascii;
+            valor_total[i] = valor_convertido;
+        }
+        printf("Valor total: %s\n", valor_total);
+        fflush(stdout);
+
+        int usuario_existente;
+        usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+
+        // Si el usuario no existe
+        if (!usuario_existente){
+            devolucion = 49;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;
+        }
+
+        int connected = comprobar_usuario("conectados.txt", valor_total);
+        
+        if (!connected) {
+            int escribir = escribir_usuario("conectados.txt", valor_total);
+            if (escribir == -1){
+                devolucion = 51;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local);
+                return -1;
+            }
+            devolucion = 48;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+			return -1;
+        }else{
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;           
+        }
+    }
     return 0;
 }
-
-
-
 
 int main(int argc, char *argv[]){  
 	// Declarar las variables para el socket y los hilos
