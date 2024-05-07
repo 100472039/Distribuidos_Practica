@@ -20,6 +20,7 @@ class client :
     _server = None
     _port = -1
     thread_running = False
+    _user = None
     # ******************** METHODS *******************
 
 
@@ -36,9 +37,12 @@ class client :
         server_address = (sys.argv[2], int(sys.argv[4]))
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
-        register_op = "0"
+        register_op = "REGISTER"
         try:
-            sock.sendall(register_op.encode())
+            for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+            
             for character in user:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
@@ -71,9 +75,12 @@ class client :
         server_address = (sys.argv[2], int(sys.argv[4]))
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
-        register_op = "1"
+        register_op = "UNREGISTER"
         try:
-            sock.sendall(register_op.encode())
+            for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
             for character in user:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
@@ -92,45 +99,55 @@ class client :
             sock.close()
         return client.RC.ERROR
 
+    @staticmethod
+    def handle_requests(server_socket):
+        # server_socket.listen(5)
+        while client.thread_running:
+            client_socket, _ = server_socket.accept()
+            # Aquí manejarías la solicitud de descarga
     
     @staticmethod
     def connect(user):
             # Paso 1: Obtener un puerto libre en el cliente
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             server_socket.bind(('localhost', 0))
-            _, port = server_socket.getsockname()
-
+            ip, port = server_socket.getsockname()
+            
             # Paso 2: Crear un hilo para manejar las solicitudes de descarga
-            def handle_requests():
-                server_socket.listen(5)
-                while client.thread_running:
-                    client_socket, _ = server_socket.accept()
-                    # Aquí manejarías la solicitud de descarga
-
-            register_op = "2"
-           
-                
+            client._user = user    
+            
             # Paso 3: Conectar al servidor principal
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             server_address = ('localhost', 8080)  # Cambia esto por la IP y puerto del servidor principal
             sock.connect(server_address)
 
             # Paso 4: Enviar la solicitud de conexión con la información necesaria
+            register_op = "CONNECT"
             try:
-                sock.sendall(register_op.encode())
+                for character in register_op:
+                    sock.sendall(character.encode())
+                sock.sendall(b'\0')
                 for character in user:
                     sock.sendall(character.encode())
                 sock.sendall(b'\0')
-
-                sock.sendall(str(port).encode())  # Puerto de escucha
-
+                
+                port = str(port)
+                for character in port:
+                    sock.sendall(character.encode())
+                sock.sendall(b'\0')
+                for character in ip:
+                    sock.sendall(character.encode())
+                sock.sendall(b'\0')
+                print("Puerto de escucha: ", port)
+                print("IP: ", ip)
                 # Paso 5: Recibir la respuesta del servidor
                 resultado = sock.recv(1024)
                 resultado = resultado.decode()
                 # Paso 6: Procesar la respuesta del servidor
                 if resultado == "0":
-                    threading.Thread(target=handle_requests, daemon=True).start()
                     client.thread_running = True
+                    server_socket.listen(5)
+                    threading.Thread(target=client.handle_requests, args=(server_socket,), daemon=True).start() 
                     print("CONNECT OK")
                 elif resultado == "1":
                     print("CONNECT FAIL, USER DOES NOT EXIST")
@@ -146,17 +163,95 @@ class client :
 
             return client.RC.ERROR
 
-
-
     
     @staticmethod
     def  disconnect(user) :
-        #  Write your code here
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+        arguments = len(sys.argv)
+        if arguments < 3:
+            print('Uso: client_calc  <host> <port>')
+            exit()
+
+        server_address = (sys.argv[2], int(sys.argv[4]))
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
+        register_op = "DISCONNECT"
+        try:
+            for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in user:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+            
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
+
+            if resultado == "0":
+                client.thread_running = False
+                print("UNREGISTER OK")
+            elif resultado == "1":
+                print("USER DOES NOT EXIST")
+            elif resultado == "2":
+                print("UNREGISTER FAIL")
+        finally:
+            print('closing socket')
+            sock.close()
+
         return client.RC.ERROR
 
     @staticmethod
     def  publish(fileName,  description) :
-        #  Write your code here
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+        arguments = len(sys.argv)
+        if arguments < 3:
+            print('Uso: client_calc  <host> <port>')
+            exit()
+
+        server_address = (sys.argv[2], int(sys.argv[4]))
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
+        register_op = "PUBLISH"
+
+        try:
+            
+            for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in client._user:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            print("filename:",str(fileName))
+            for character in fileName:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            print("description:", str(description))
+            for character in description:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+            
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
+
+            if resultado == "0":
+                print("PUBLISH OK")
+            elif resultado == "1":
+                print("PUBLISH FAIL, USER DOES NOT EXIST")
+            elif resultado == "2":
+                print("PUBLISH FAIL, USER NOT CONNECTED")
+            elif resultado == "3":
+                print("PUBLISH FAIL, CONTENT ALREADY PUBISHED")
+            elif resultado == "4":
+                print("PUBLISH FAIL")
+        finally:
+            print('closing socket')
+            sock.close()
         return client.RC.ERROR
 
     @staticmethod
