@@ -36,12 +36,12 @@ void crear_directorio_para_usuario(const char *username) {
     }
 }
 
-void eliminar_usuario(const char *usuario) {
+int eliminar_usuario(const char *usuario) {
     // Abre el archivo usuarios.txt en modo de lectura y escritura
     FILE *archivo = fopen("usuarios.txt", "r+");
     if (archivo == NULL) {
         perror("Error al abrir el archivo usuarios.txt");
-        return;
+        return -1;
     }
 
     // Abre un archivo temporal para escribir los usuarios que no se van a eliminar
@@ -49,7 +49,7 @@ void eliminar_usuario(const char *usuario) {
     if (temporal == NULL) {
         perror("Error al abrir el archivo temporal.txt");
         fclose(archivo);
-        return;
+        return -1;
     }
 
     char nombre_usuario[256];
@@ -76,24 +76,26 @@ void eliminar_usuario(const char *usuario) {
     // Elimina el archivo usuarios.txt original
     if (remove("usuarios.txt") != 0) {
         perror("Error al eliminar el archivo usuarios.txt");
-        return;
+        return -1;
     }
 
     // Renombra el archivo temporal.txt como usuarios.txt
     if (rename("temporal.txt", "usuarios.txt") != 0) {
         perror("Error al renombrar el archivo temporal.txt");
-        return;
+        return -1;
     }
 
     if (encontrado) {
         printf("Usuario \"%s\" eliminado de usuarios.txt", usuario);
+        return 0;
     } else {
         printf("Usuario \"%s\" no encontrado en usuarios.txt", usuario);
+        return -1;
     }
 }
 
 int comprobar_usuario(char *path, char *usuario){
-    // Abrir el archivo de texto para lectura
+    // 0: no encontrado, 1: encontrado
         FILE *fp = fopen(path, "r");
         if (fp == NULL) {
             perror("Error al abrir el archivo\n");
@@ -120,6 +122,7 @@ int comprobar_usuario(char *path, char *usuario){
 }
 
 int comprobar_usuario_conectado(char *path, char *usuario) {
+    // 0: no encontrado, 1: encontrado
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
         perror("Error al abrir el archivo\n");
@@ -199,23 +202,12 @@ int escribir_usuario_ip_port(char *path, char *usuario, char *ip, char *puerto) 
     return 0;
 }
 
-int tratar_peticion(int *s) {
-    // Declaración de las variables que se van a utilizar
+int recibir_mensaje(int s_local, char *mensaje_recibido){
     int recv_status;
-    int s_local;
     int valor_ascii = 1;
     char valor_convertido;
-    char *op_recibido = (char *)malloc(256);
-    char *valor_total = (char *)malloc(256);
+    // char *mensaje_recibido = (char *)malloc(256);
     int devolucion;
-    
-    pthread_mutex_lock(&mutex_mensaje);
-    s_local = (* (int *)s);
-    busy = false;
-    pthread_cond_signal(&cond_mensaje);
-    pthread_mutex_unlock(&mutex_mensaje);
-
-    // Recibe el operador del cliente
     for (int i = 0; valor_ascii != 0; i++){
         recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
         if (recv_status == -1) {
@@ -226,52 +218,44 @@ int tratar_peticion(int *s) {
             return -1;
         }
         valor_convertido = valor_ascii;
-        op_recibido[i] = valor_convertido;
+        mensaje_recibido[i] = valor_convertido;
         // printf("Valor i: %d", valor_ascii);
         // printf("Valor convertido: %c", valor_convertido);
-        // printf("Valor total: %c", valor_total[i]);
+        // printf("Mensaje recibido: %c", mensaje_recibido[i]);
         
     }
-    printf("op_recibido: %s", op_recibido);
+    printf("mensaje recibido: %s", mensaje_recibido);
+    return 0;
+}
 
-    // recv_status = recvMessage(s_local, (char *)&op_recibido, sizeof(char));
-    // if (recv_status == -1) {
-    //     perror("Error en recepcion\n");
-    //     close(s_local);
-    //     exit(-1);
-    // }
-    // op_recibido = op_recibido - 48;
-    // printf("op_recibido: %d", op_recibido);
-    // 
+int tratar_peticion(int *s) {
+    // Declaración de las variables que se van a utilizar
+    int s_local;
+    char *op_recibido = (char *)malloc(256);
+    char *valor_total = (char *)malloc(256);
+    int devolucion;
+    
+    pthread_mutex_lock(&mutex_mensaje);
+    s_local = (* (int *)s);
+    busy = false;
+    pthread_cond_signal(&cond_mensaje);
+    pthread_mutex_unlock(&mutex_mensaje);
+
+    // Recibir operación
+    recibir_mensaje(s_local, op_recibido);
 
     if (strcmp("REGISTER", op_recibido) == 0){
-        valor_ascii = 1;
         int usuario_existente;
         printf("Realizar registro");
         
-        for (int i = 0; valor_ascii != 0; i++){
-            recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
-            if (recv_status == -1) {
-                perror("Error en recepcion\n");
-                devolucion = 50;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                close(s_local);
-                return -1;
-            }
-            valor_convertido = valor_ascii;
-            valor_total[i] = valor_convertido;
-			
-        }
-
-        
-        printf("Valor total: %s", valor_total);
-        
+        // Recibir usuario
+        recibir_mensaje(s_local, valor_total);
 
         usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
 
         if (usuario_existente == 1) {
             // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
-            printf("coincide");
+            printf("El usuario coincide");
             
             devolucion = 49;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -296,24 +280,9 @@ int tratar_peticion(int *s) {
     }
 
     if (strcmp("UNREGISTER", op_recibido) == 0){
-        valor_ascii = 1;
-        int valor_ascii = 1;
-        char valor_convertido;
         printf("Realizar baja de registro");
         
-        for (int i = 0; valor_ascii != 0; i++){
-            recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
-            if (recv_status == -1) {
-                perror("Error en recepcion\n");
-                devolucion = 50;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                close(s_local);
-                return -1;
-            }
-            valor_convertido = valor_ascii;
-            valor_total[i] = valor_convertido;
-        }
-        printf("Valor total: %s", valor_total);
+        recibir_mensaje(s_local, valor_total);
         
 
         int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
@@ -328,7 +297,13 @@ int tratar_peticion(int *s) {
                 perror("Error al eliminar el directorio");
             }
 
-            eliminar_usuario(valor_total);
+            int eliminar = eliminar_usuario(valor_total);
+            if (eliminar == -1){
+                devolucion = 51;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local); 
+                return -1;
+            }
             // Enviar mensaje al cliente de que el registro fue exitoso
             devolucion = 48;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -340,137 +315,90 @@ int tratar_peticion(int *s) {
         }
     }
 
-        if(strcmp("CONNECT", op_recibido) == 0){
-            valor_ascii = 1;
-            char valor_convertido;
-            char *port = (char *)malloc(256);
-            char *ip = (char *)malloc(256);
-            printf("Realizar conexión");
-            
-            for (int i = 0; valor_ascii != 0; i++){
-                recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
-                if (recv_status == -1) {
-                    perror("Error en recepcion\n");
-                    devolucion = 50;
-                    sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                    close(s_local);
-                    return -1;
-                }
-                valor_convertido = valor_ascii;
-                valor_total[i] = valor_convertido;
-            }
-            printf("Valor total: %s", valor_total);
+    if(strcmp("CONNECT", op_recibido) == 0){
+        char *port = (char *)malloc(256);
+        char *ip = (char *)malloc(256);
+        printf("Realizar conexión");
+        
+        recibir_mensaje(s_local, valor_total);
 
-            valor_ascii = 1;
-            for (int i = 0; valor_ascii != 0; i++){
-                recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
-                if (recv_status == -1) {
-                    perror("Error en recepcion\n");
-                    devolucion = 50;
-                    sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                    close(s_local);
-                    return -1;
-                }
-                valor_convertido = valor_ascii;
-                port[i] = valor_convertido;
-            }
-            printf("puerto: %s", port);
+        recibir_mensaje(s_local, port);
 
-            valor_ascii = 1;
-            for (int i = 0; valor_ascii != 0; i++){
-                recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
-                if (recv_status == -1) {
-                    perror("Error en recepcion\n");
-                    devolucion = 50;
-                    sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                    close(s_local);
-                    return -1;
-                }
-                valor_convertido = valor_ascii;
-                ip[i] = valor_convertido;
-            }
-            printf("ip: %s", ip);
-            
+        recibir_mensaje(s_local, ip);
+        
 
-            int usuario_existente;
-            usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        int usuario_existente;
+        usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
 
-            // Si el usuario no existe
-            if (usuario_existente == 0){
-                devolucion = 49;
+        // Si el usuario no existe
+        if (usuario_existente == 0){
+            devolucion = 49;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;
+        }            
+
+        int connected = comprobar_usuario_conectado("conectados.txt", valor_total);
+        if (connected == 0) {
+            int escribir = escribir_usuario_ip_port("conectados.txt", valor_total, ip, port);
+            if (escribir == -1){
+                devolucion = 51;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local); 
                 return -1;
             }
-            
-
-            int connected = comprobar_usuario_conectado("conectados.txt", valor_total);
-            if (connected == 0) {
-                int escribir = escribir_usuario_ip_port("conectados.txt", valor_total, ip, port);
-                if (escribir == -1){
-                    devolucion = 51;
-                    sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                    close(s_local); 
-                    return -1;
-                }
-                devolucion = 48;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
-            }else{
-                devolucion = 50;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                return -1;           
-            }
+            devolucion = 48;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        }else{
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;           
         }
+    }
+
+    if(strcmp("DISCONNECT", op_recibido) == 0){
+        printf("Realizar desconexión");
+        
+        recibir_mensaje(s_local, valor_total);
+        
+
+        // int usuario_existente;
+        // usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+
+        // // Si el usuario no existe
+        // if (usuario_existente == 0){
+        //     devolucion = 49;
+        //     sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        //     return -1;
+        // }
+
+        int connected = comprobar_usuario_conectado("conectados.txt", valor_total);
+        if (connected == 1) {
+            int eliminar = eliminar_usuario(valor_total);
+            if (eliminar == -1){
+                devolucion = 51;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local); 
+                return -1;
+            }
+            devolucion = 48;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        }else{
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;           
+        }
+    }
 
     if(strcmp("PUBLISH", op_recibido) == 0){
-        valor_ascii = 1;
-        char valor_convertido;
         char *fileName = (char *)malloc(256);
         char *fileContent = (char *)malloc(256);
         printf("Realizar conexión");
         
-        for (int i = 0; valor_ascii != 0; i++){
-            recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
-            if (recv_status == -1) {
-                perror("Error en recepcion\n");
-                devolucion = 50;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                close(s_local);
-                return -1;
-            }
-            valor_convertido = valor_ascii;
-            valor_total[i] = valor_convertido;
-        }
-        printf("Valor total: %s", valor_total);
+        recibir_mensaje(s_local, valor_total);
         
-        valor_ascii = 1;
-        for (int i = 0; valor_ascii != 0; i++){
-            recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
-            if (recv_status == -1) {
-                perror("Error en recepcion\n");
-                devolucion = 50;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                close(s_local);
-                return -1;
-            }
-            valor_convertido = valor_ascii;
-            fileName[i] = valor_convertido;
-        }
-        printf("fileName: %s", fileName);
+        recibir_mensaje(s_local, fileName);
         
-        valor_ascii = 1;
-        for (int i = 0; valor_ascii != 0; i++){
-            recv_status = recvMessage(s_local, (char *)&valor_ascii, sizeof(char));
-            if (recv_status == -1) {
-                perror("Error en recepcion\n");
-                devolucion = 50;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                close(s_local);
-                return -1;
-            }
-            valor_convertido = valor_ascii;
-            fileContent[i] = valor_convertido;
-        }
-        printf("fileContent: %s", fileContent);
+        recibir_mensaje(s_local, fileContent);
         
         int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
         if (usuario_existente == 0) {
