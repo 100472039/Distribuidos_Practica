@@ -36,9 +36,9 @@ void crear_directorio_para_usuario(const char *username) {
     }
 }
 
-int eliminar_usuario(const char *usuario) {
+int eliminar_usuario(char *path, const char *usuario) {
     // Abre el archivo usuarios.txt en modo de lectura y escritura
-    FILE *archivo = fopen("usuarios.txt", "r+");
+    FILE *archivo = fopen(path, "r+");
     if (archivo == NULL) {
         perror("Error al abrir el archivo usuarios.txt");
         return -1;
@@ -52,20 +52,24 @@ int eliminar_usuario(const char *usuario) {
         return -1;
     }
 
-    char nombre_usuario[256];
     bool encontrado = false;
+    char linea[256];
+    char linea_aux[256];
+    char *token;
 
     // Lee el archivo usuarios.txt línea por línea
-    while (fgets(nombre_usuario, sizeof(nombre_usuario), archivo)) {
+    while (fgets(linea, sizeof(linea), archivo)) {
         // Elimina el carácter de nueva línea del nombre de usuario leído
-        nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
+        linea[strcspn(linea, "\n")] = '\0';
+        strcpy(linea_aux, linea);
+        token = strtok(linea_aux, " ");
 
         // Comprueba si el nombre de usuario coincide
-        if (strcmp(nombre_usuario, usuario) == 0) {
+        if (strcmp(token, usuario) == 0) {
             encontrado = true;
         } else {
             // Escribe el nombre de usuario en el archivo temporal si no se va a eliminar
-            fprintf(temporal, "%s\n", nombre_usuario);
+            fprintf(temporal, "%s\n", linea);
         }
     }
 
@@ -73,55 +77,28 @@ int eliminar_usuario(const char *usuario) {
     fclose(archivo);
     fclose(temporal);
 
-    // Elimina el archivo usuarios.txt original
-    if (remove("usuarios.txt") != 0) {
+    // Elimina el archivo original
+    if (remove(path) != 0) {
         perror("Error al eliminar el archivo usuarios.txt");
         return -1;
     }
 
-    // Renombra el archivo temporal.txt como usuarios.txt
-    if (rename("temporal.txt", "usuarios.txt") != 0) {
+    // Renombra el archivo temporal.txt como el original
+    if (rename("temporal.txt", path) != 0) {
         perror("Error al renombrar el archivo temporal.txt");
         return -1;
     }
 
     if (encontrado) {
-        printf("Usuario \"%s\" eliminado de usuarios.txt", usuario);
+        printf("Usuario \"%s\" eliminado de %s", usuario, path);
         return 0;
     } else {
-        printf("Usuario \"%s\" no encontrado en usuarios.txt", usuario);
+        printf("Usuario \"%s\" no encontrado en %s", usuario, path);
         return -1;
     }
 }
 
-int comprobar_usuario(char *path, char *usuario){
-    // 0: no encontrado, 1: encontrado
-        FILE *fp = fopen(path, "r");
-        if (fp == NULL) {
-            perror("Error al abrir el archivo\n");
-            return -1;
-        }
-
-        char nombre_usuario[256];
-
-        // Leer el archivo línea por línea y buscar el nombre de usuario
-        while (fgets(nombre_usuario, sizeof(nombre_usuario), fp) != NULL) {
-            // Eliminar el carácter de nueva línea del nombre de usuario leído
-            nombre_usuario[strcspn(nombre_usuario, "\n")] = '\0';
-
-			
-            // Comprobar si el nombre de usuario coincide
-            if (strcmp(nombre_usuario, usuario) == 0) {
-                return 1;
-            }
-        }
-    
-        // Cerrar el archivo
-        fclose(fp);
-        return 0;
-}
-
-int comprobar_usuario_conectado(char *path, char *usuario) {
+int comprobar_usuario(char *path, char *usuario) {
     // 0: no encontrado, 1: encontrado
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
@@ -135,6 +112,7 @@ int comprobar_usuario_conectado(char *path, char *usuario) {
     // Leer el archivo línea por línea
     while (fgets(linea, sizeof(linea), fp) != NULL) {
         // Dividir la línea en tokens usando el espacio como delimitador
+        linea[strcspn(linea, "\n")] = '\0';
         token = strtok(linea, " ");
         
         // Comprobar si el primer token (nombre de usuario) coincide
@@ -297,7 +275,7 @@ int tratar_peticion(int *s) {
                 perror("Error al eliminar el directorio");
             }
 
-            int eliminar = eliminar_usuario(valor_total);
+            int eliminar = eliminar_usuario("usuarios.txt", valor_total);
             if (eliminar == -1){
                 devolucion = 51;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -337,7 +315,7 @@ int tratar_peticion(int *s) {
             return -1;
         }            
 
-        int connected = comprobar_usuario_conectado("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", valor_total);
         if (connected == 0) {
             int escribir = escribir_usuario_ip_port("conectados.txt", valor_total, ip, port);
             if (escribir == -1){
@@ -359,21 +337,10 @@ int tratar_peticion(int *s) {
         printf("Realizar desconexión");
         
         recibir_mensaje(s_local, valor_total);
-        
 
-        // int usuario_existente;
-        // usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
-
-        // // Si el usuario no existe
-        // if (usuario_existente == 0){
-        //     devolucion = 49;
-        //     sendMessage(s_local, (char *)&devolucion, sizeof(char));
-        //     return -1;
-        // }
-
-        int connected = comprobar_usuario_conectado("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", valor_total);
         if (connected == 1) {
-            int eliminar = eliminar_usuario(valor_total);
+            int eliminar = eliminar_usuario("conectados.txt", valor_total);
             if (eliminar == -1){
                 devolucion = 51;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -407,7 +374,7 @@ int tratar_peticion(int *s) {
                 return -1;
         }
         
-        int connected = comprobar_usuario_conectado("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", valor_total);
         if (connected == 0) {
             devolucion = 50;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
