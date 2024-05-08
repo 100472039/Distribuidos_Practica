@@ -191,11 +191,11 @@ class client :
 
             if resultado == "0":
                 client.thread_running = False
-                print("UNREGISTER OK")
+                print("DISCONNECT OK")
             elif resultado == "1":
                 print("USER DOES NOT EXIST")
             elif resultado == "2":
-                print("UNREGISTER FAIL")
+                print("DISCONNECT FAIL")
         finally:
             print('closing socket')
             sock.close()
@@ -215,7 +215,6 @@ class client :
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         register_op = "PUBLISH"
-
         try:
             
             for character in register_op:
@@ -256,7 +255,49 @@ class client :
 
     @staticmethod
     def  delete(fileName) :
-        #  Write your code here
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+        arguments = len(sys.argv)
+        if arguments < 3:
+            print('Uso: client_calc  <host> <port>')
+            exit()
+
+        server_address = (sys.argv[2], int(sys.argv[4]))
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
+        register_op = "DELETE"
+
+        try:
+            
+            for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in client._user:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            print("filename:",str(fileName))
+            for character in fileName:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+            
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
+
+            if resultado == "0":
+                print("DELETE OK")
+            elif resultado == "1":
+                print("DELETE FAIL, USER DOES NOT EXIST")
+            elif resultado == "2":
+                print("DELETE FAIL, USER NOT CONNECTED")
+            elif resultado == "3":
+                print("DELETE FAIL, CONTENT NOT PUBISHED")
+            elif resultado == "4":
+                print("DELETE FAIL")
+        finally:
+            print('closing socket')
+            sock.close()
         return client.RC.ERROR
 
     @staticmethod

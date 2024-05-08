@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+
 #include "send-recv.h"
 #include "send-recv.c"
 
@@ -206,6 +207,71 @@ int recibir_mensaje(int s_local, char *mensaje_recibido){
     return 0;
 }
 
+int verificar_archivo_existente(const char *username, char *nombre_archivo) {
+    // Crear una cadena para contener la ruta del directorio del usuario
+    char directorio_usuario[256];
+    snprintf(directorio_usuario, sizeof(directorio_usuario), "usuarios/%s/", username);
+
+    // Abrir el directorio del usuario
+    DIR *dir = opendir(directorio_usuario);
+    if (dir == NULL) {
+        perror("Error al abrir el directorio del usuario");
+        return -1; // Error al abrir el directorio
+    }
+
+    struct dirent *entry;
+
+    // Recorrer los archivos dentro del directorio
+    while ((entry = readdir(dir)) != NULL) {
+        // Ignorar los directorios "." y ".."
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+        printf("Archivo: %s\n", entry->d_name);
+        fflush(stdout);
+
+        printf("Archivo 2: %s\n", nombre_archivo);
+        fflush(stdout);
+
+        // Quitar la extensión ".txt" del nombre del archivo
+        char nombre_sin_extension[256];
+        strncpy(nombre_sin_extension, entry->d_name, sizeof(nombre_sin_extension));
+        char *punto = strstr(nombre_sin_extension, ".txt");
+        if (punto != NULL) {
+            *punto = '\0'; // Coloca un carácter nulo para truncar la cadena en el punto
+        }
+
+        printf("nombre sin extension: %s\n", nombre_sin_extension);
+        fflush(stdout);
+        // Verificar si el archivo tiene el mismo nombre que el buscado
+        if (strcmp(nombre_sin_extension, nombre_archivo) == 0) {
+            closedir(dir);
+            return 1; // El archivo existe
+        }
+    }
+
+    // Cerrar el directorio
+    closedir(dir);
+
+    // El archivo no se encontró
+    return 0;
+}
+
+int borrar_archivo(const char *username, const char *nombre_archivo) {
+    // Crear una cadena para contener la ruta del archivo a borrar
+    char ruta_archivo[256];
+    snprintf(ruta_archivo, sizeof(ruta_archivo), "usuarios/%s/%s.txt", username, nombre_archivo);
+
+    // Intentar borrar el archivo
+    if (remove(ruta_archivo) == 0) {
+        printf("El archivo \"%s\" ha sido borrado para el usuario \"%s\".\n", nombre_archivo, username);
+        return 0; // Borrado exitoso
+    } else {
+        perror("Error al borrar el archivo");
+        return -1; // Error al borrar el archivo
+    }
+}
+
 int tratar_peticion(int *s) {
     // Declaración de las variables que se van a utilizar
     int s_local;
@@ -359,7 +425,7 @@ int tratar_peticion(int *s) {
     if(strcmp("PUBLISH", op_recibido) == 0){
         char *fileName = (char *)malloc(256);
         char *fileContent = (char *)malloc(256);
-        printf("Realizar conexión");
+        printf("Realizar publicación");
         
         recibir_mensaje(s_local, valor_total);
         
@@ -381,11 +447,65 @@ int tratar_peticion(int *s) {
             return -1;
         }
 
-        crear_archivo_descripcion(valor_total, fileName, fileContent);
-        devolucion = 48;
-        sendMessage(s_local, (char *)&devolucion, sizeof(char));
-
         
+        int archivo_existente = verificar_archivo_existente(valor_total, fileName);
+        if (archivo_existente == 1) {
+            devolucion = 51;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;
+
+        }else if(archivo_existente == 0){
+            int crear = crear_archivo_descripcion(valor_total, fileName, fileContent);
+            if (crear == -1){
+                devolucion = 52;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local); 
+                return -1;
+            }
+            devolucion = 48;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        }
+    }
+
+    if (strcmp("DELETE", op_recibido) == 0){
+        char *fileName = (char *)malloc(256);
+        printf("Realizar publicación");
+        
+        recibir_mensaje(s_local, valor_total);
+        
+        recibir_mensaje(s_local, fileName);
+
+        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        if (usuario_existente == 0) {
+                devolucion = 49;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                return -1;
+        }
+        
+        int connected = comprobar_usuario("conectados.txt", valor_total);
+        if (connected == 0) {
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;
+        }
+
+        int archivo_existente = verificar_archivo_existente(valor_total, fileName);
+        if (archivo_existente == 0) {
+            devolucion = 51;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;
+
+        }else if(archivo_existente == 1){
+            int borrar = borrar_archivo(valor_total, fileName);
+            if (borrar == -1){
+                devolucion = 52;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                close(s_local); 
+                return -1;
+            }
+            devolucion = 48;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        }
     }
     return 0;
 }
