@@ -507,6 +507,88 @@ int tratar_peticion(int *s) {
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
         }
     }
+
+    if(strcmp("LIST_USERS", op_recibido) == 0){
+
+        recibir_mensaje(s_local, valor_total);
+        printf("Listar usuarios para %s", valor_total);
+
+        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        if (usuario_existente == 0) {
+                devolucion = 49;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                return -1;
+        }
+
+        int connected = comprobar_usuario("conectados.txt", valor_total);
+        if (connected == 0) {
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1;
+        }
+
+        FILE *fp1 = fopen("conectados.txt", "r");
+        if (fp1 == NULL) {
+            perror("Error al abrir el archivo\n");
+            return -1;
+        }
+
+        // Si todo ha ido bien, se enviará el mensaje de OK
+        devolucion = 48;
+        sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        sleep(0.1);
+
+        char linea1[256];
+        char linea[256];
+        int n_lineas = 0;
+        char *token;
+
+        // Contar número de líneas
+        while (fgets(linea1, sizeof(linea1), fp1) != NULL) {
+            n_lineas++;
+        }
+        devolucion = n_lineas;
+        printf("Número de líneas: %d", devolucion);
+        sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        sleep(0.1);
+
+        FILE *fp = fopen("conectados.txt", "r");
+        if (fp == NULL) {
+            perror("Error al abrir el archivo\n");
+            return -1;
+        }
+
+        // Leer el archivo línea por línea
+        while (fgets(linea, sizeof(linea), fp) != NULL) {
+            // Dividir la línea en tokens usando el espacio como delimitador
+            linea[strcspn(linea, "\n")] = '\0';
+            token = strtok(linea, " ");
+            // Imprimir cada token
+            while (token != NULL) {
+                printf("Token: %s", token);
+                for (int i = 0; token[i] != '\0'; i++) {
+                    // printf("Caracter %d: %c", i+1, token[i]);
+                    sendMessage(s_local, (char *)&token[i], sizeof(char));
+                    sleep(0.1);
+                }
+                devolucion = 0;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                sleep(0.1);
+                token = strtok(NULL, " "); // Obtener el siguiente token
+            }
+            // for (int i = 0; linea[i] != '\0'; i++){
+            //     printf("El caracter '%c' tiene el valor ASCII %d", linea[i], (int)linea[i]);
+            //     devolucion = (int)linea[i];
+            //     sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                // printf("%d", linea[i])
+            // }
+        }
+
+        // Cerrar el archivo
+        fclose(fp);
+    }
+
+
     return 0;
 }
 

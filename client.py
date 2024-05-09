@@ -21,6 +21,7 @@ class client :
     _port = -1
     thread_running = False
     _user = None
+    thread = None
     # ******************** METHODS *******************
 
 
@@ -102,9 +103,13 @@ class client :
     @staticmethod
     def handle_requests(server_socket):
         # server_socket.listen(5)
+        print("Funcion finalizada")
         while client.thread_running:
             client_socket, _ = server_socket.accept()
             # Aquí manejarías la solicitud de descarga
+        server_socket.close()
+        print("Funcion finalizada")
+        
     
     @staticmethod
     def connect(user):
@@ -114,7 +119,7 @@ class client :
             ip, port = server_socket.getsockname()
             
             # Paso 2: Crear un hilo para manejar las solicitudes de descarga
-            client._user = user    
+                
             
             # Paso 3: Conectar al servidor principal
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -147,7 +152,9 @@ class client :
                 if resultado == "0":
                     client.thread_running = True
                     server_socket.listen(5)
-                    threading.Thread(target=client.handle_requests, args=(server_socket,), daemon=True).start() 
+                    client.thread = threading.Thread(target=client.handle_requests, args=(server_socket,), daemon=True)
+                    client.thread.start()
+                    client._user = user
                     print("CONNECT OK")
                 elif resultado == "1":
                     print("CONNECT FAIL, USER DOES NOT EXIST")
@@ -191,6 +198,7 @@ class client :
 
             if resultado == "0":
                 client.thread_running = False
+                
                 print("DISCONNECT OK")
             elif resultado == "1":
                 print("USER DOES NOT EXIST")
@@ -302,7 +310,60 @@ class client :
 
     @staticmethod
     def  listusers() :
-        #  Write your code here
+        #  Listar usuarios
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+        arguments = len(sys.argv)
+        if arguments < 3:
+            print('Uso: client_calc  <host> <port>')
+            exit()
+
+        server_address = (sys.argv[2], int(sys.argv[4]))
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
+        register_op = "LIST_USERS"
+        try:
+            for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+            
+            print("Usted es el usuario "+str(client._user))
+            for character in client._user:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
+            print("Resultado: "+resultado)
+
+            if resultado == "0":
+                print("LIST_USERS OK")
+                # Recibe número de filas a imprimir
+                resultado = ""
+                n_lineas = sock.recv(1024)
+                n_lineas = n_lineas.decode()
+                n_lineas = ord(n_lineas)
+                n_lineas = int(n_lineas)*3
+                print(n_lineas)
+                while n_lineas > 0:
+                    caracter = sock.recv(1024)
+                    if caracter == b'\x00':
+                        resultado += " "
+                        n_lineas -= 1
+                        if n_lineas % 3 == 0:
+                            resultado += "\n"
+                    resultado += caracter.decode()
+                # resultado = resultado.decode()
+                print(resultado)
+            elif resultado == "1":
+                print("LIST_USERS FAIL, USER DOES NOT EXIST")
+            elif resultado == "2":
+                print("LIST_USERS FAIL, USER NOT CONNECTED")
+            else:
+                print("LIST_USERS FAIL")
+        finally:
+            print('closing socket')
+            sock.close()
         return client.RC.ERROR
 
     @staticmethod
@@ -343,7 +404,10 @@ class client :
 
                     elif(line[0]=="CONNECT") :
                         if (len(line) == 2) :
-                            client.connect(line[1])
+                            if client._user == None:
+                                client.connect(line[1])
+                            else:
+                                print("CONNECT FAIL, YOU ARE ALREADY CONNECTED AS", client._user)
                             if client.thread_running:
                                 print("El hilo está en ejecución")
                             else:
@@ -380,6 +444,10 @@ class client :
                     elif(line[0]=="DISCONNECT") :
                         if (len(line) == 2) :
                             client.disconnect(line[1])
+                            if client.thread_running:
+                                print("El hilo está en ejecución")
+                            else:
+                                print("El hilo no se ha iniciado o ya ha terminado")
                         else :
                             print("Syntax error. Usage: DISCONNECT <userName>")
 
@@ -391,6 +459,8 @@ class client :
 
                     elif(line[0]=="QUIT") :
                         if (len(line) == 1) :
+                            if client._user != None:
+                                client.disconnect(client._user) 
                             break
                         else :
                             print("Syntax error. Use: QUIT")
