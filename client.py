@@ -423,34 +423,32 @@ class client :
 
     @staticmethod
     def handle_requests(server_socket):
-        # server_socket.listen(5)
+
         print("c> Funcion finalizada")
         while client.thread_running:
             client_socket, _ = server_socket.accept()
-            print("Connection accepted from:", client_socket.getpeername())
             request = client_socket.recv(1024).decode()
-            print(request)
-            filename = client_socket.recv(1024).decode()
-            print(filename)
-            print(client._user)
-            # path ="usuarios/"+client._user
-            user_directory = os.path.join("usuarios", client._user)
-            remote_file_path = os.path.abspath(os.path.join(user_directory, filename))
-            # Verificar si el archivo existe localmente
-            if os.path.exists(remote_file_path):
-                # Enviar código 0 para indicar que el archivo se puede transferir
-                client_socket.sendall(b'0')
+            if request == "GET FILE":
+                filename = client_socket.recv(1024).decode()
+                user_directory = os.path.join("usuarios", client._user)
+                remote_file_path = os.path.abspath(os.path.join(user_directory, filename))
 
-                # Abrir el archivo y enviar su contenido al cliente
-                with open(filename, 'rb') as file:
-                    while True:
-                        data = file.read(1024)
-                        if not data:
-                            break
-                        client_socket.sendall(data)
-            else:
-                # Enviar código 1 para indicar que el archivo no existe
-                client_socket.sendall(b'\x01')
+                # Verificar si el archivo existe localmente
+                if os.path.exists(remote_file_path):
+
+                    # Enviar código 0 para indicar que el archivo se puede transferir
+                    client_socket.sendall(b'0')
+
+                    # Abrir el archivo y enviar su contenido al cliente
+                    with open(remote_file_path, 'rb') as file:
+                        data = True
+                        while data:
+                            data = file.read(1024)
+                            client_socket.sendall(data)
+                else:
+
+                    # Enviar código 1 para indicar que el archivo no existe
+                    client_socket.sendall(b'1')
 
             # Cerrar la conexión con el cliente remoto
             client_socket.close()
@@ -458,11 +456,14 @@ class client :
         
     @staticmethod
     def  getfile(user,  remote_FileName,  local_FileName) :
-        #  Listar contenido
-        # Paso 1: Conectar al cliente remoto
+        # Listar contenido
+
+        # Conectar al cliente remoto
         remote_client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Tomar ip y puerto
+        usuario_conectado = False
+
         if len(client.conectados) == 0:
             print("c> GET_FILE FAIL, LIST_USERS NOT DONE")
             return client.RC.ERROR
@@ -470,21 +471,48 @@ class client :
             if diccionario["nombre"] == user:
                 ip = diccionario["ip"]
                 puerto = diccionario["puerto"]
-                print("c> IP: ", ip)
-                print("c> Puerto: ", puerto)
-
-        tupla = (ip, int(puerto))
-        remote_client_socket.connect(tupla)  # Aquí debes obtener el puerto del cliente remoto
+                usuario_conectado = True
+                break
         
-        # # Paso 2: Enviar la cadena "GET FILE"
+        if not usuario_conectado:
+            print("c> GET_FILE FAIL")
+            return client.RC.ERROR
+                   
+        tupla = (ip, int(puerto))
+        remote_client_socket.connect(tupla)  
+        
+        # Enviar la cadena "GET FILE"
         remote_client_socket.sendall("GET FILE".encode())
         time.sleep(0.1)
-        # # Paso 3: Enviar el nombre del archivo remoto
+
+        # Enviar el nombre del archivo remoto
         remote_client_socket.sendall(remote_FileName.encode())
         
-        # Paso 4: Recibir el resultado de la operación
-        # resultado = remote_client_socket.recv(1)
-        # resultado = int.from_bytes(resultado, byteorder='big')
+        # Recibir el resultado de la operación
+        resultado = remote_client_socket.recv(1024)
+        resultado = int.from_bytes(resultado, byteorder='big')
+
+
+        user_directory = os.path.join("usuarios", client._user)
+        local_file_path = os.path.abspath(os.path.join(user_directory, local_FileName))
+
+        # Procesar el resultado
+        if resultado == 48:
+            with open(local_file_path, 'wb') as local_file:
+                while True:
+                    data = remote_client_socket.recv(1024)
+                    if not data:
+                        break
+                    print(data)
+                    local_file.write(data)
+            print("c> GET_FILE OK")
+        elif resultado == 49:
+            print("c> GET_FILE FAIL / FILE NOT EXIST")
+        else:
+            print("c> GET_FILE FAIL")
+
+        # Cerrar la conexión
+        remote_client_socket.close()
 
         return client.RC.ERROR
 

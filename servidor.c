@@ -10,7 +10,7 @@
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <dirent.h>
-
+#include <signal.h>
 
 #include "send-recv.h"
 #include "send-recv.c"
@@ -320,12 +320,13 @@ int tratar_peticion(int *s) {
     // Recibir operación
     recibir_mensaje(s_local, op_recibido);
 
+    // Recibir usuario
+    recibir_mensaje(s_local, valor_total);
+    printf("OPERATION FROM %s", valor_total);
+
     if (strcmp("REGISTER", op_recibido) == 0){
         int usuario_existente;
         printf("Realizar registro");
-        
-        // Recibir usuario
-        recibir_mensaje(s_local, valor_total);
 
         usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
 
@@ -357,8 +358,6 @@ int tratar_peticion(int *s) {
 
     if (strcmp("UNREGISTER", op_recibido) == 0){
         printf("Realizar baja de registro");
-        
-        recibir_mensaje(s_local, valor_total);
         
 
         int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
@@ -395,8 +394,6 @@ int tratar_peticion(int *s) {
         char *port = (char *)malloc(256);
         char *ip = (char *)malloc(256);
         printf("Realizar conexión");
-        
-        recibir_mensaje(s_local, valor_total);
 
         recibir_mensaje(s_local, port);
 
@@ -433,8 +430,6 @@ int tratar_peticion(int *s) {
 
     if(strcmp("DISCONNECT", op_recibido) == 0){
         printf("Realizar desconexión");
-        
-        recibir_mensaje(s_local, valor_total);
 
         int connected = comprobar_usuario("conectados.txt", valor_total);
         if (connected == 1) {
@@ -458,8 +453,6 @@ int tratar_peticion(int *s) {
         char *fileName = (char *)malloc(256);
         char *fileContent = (char *)malloc(256);
         printf("Realizar publicación");
-        
-        recibir_mensaje(s_local, valor_total);
         
         recibir_mensaje(s_local, fileName);
         
@@ -512,8 +505,6 @@ int tratar_peticion(int *s) {
         char *fileName = (char *)malloc(256);
         printf("Realizar publicación");
         
-        recibir_mensaje(s_local, valor_total);
-        
         recibir_mensaje(s_local, fileName);
 
         int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
@@ -555,8 +546,8 @@ int tratar_peticion(int *s) {
     }
 
     if(strcmp("LIST_USERS", op_recibido) == 0){
+        // Listar usuarios
 
-        recibir_mensaje(s_local, valor_total);
         printf("Listar usuarios para %s", valor_total);
 
         int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
@@ -635,9 +626,9 @@ int tratar_peticion(int *s) {
     }
 
     if(strcmp("LIST_CONTENT", op_recibido) == 0){
-        char *usuario_deseado = (char *)malloc(256);
+        // Listar contenido
 
-        recibir_mensaje(s_local, valor_total);
+        char *usuario_deseado = (char *)malloc(256);
 
         // Comprobar que el usuario actual existe
         int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
@@ -742,7 +733,13 @@ int tratar_peticion(int *s) {
     return 0;
 }
 
+void handle_sigint(int sig) {
+    printf("Recibida señal SIGINT (Ctrl+C). Saliendo...\n");
+    exit(0);
+}
+
 int main(int argc, char *argv[]){  
+
 	// Declarar las variables para el socket y los hilos
 	int sd_server, sd_client ;
 	struct sockaddr_in server_addr,  client_addr;
@@ -766,8 +763,12 @@ int main(int argc, char *argv[]){
 		printf("SERVER: Error en las opciones del socket");
         return -1;
 	}
-	
-	int puerto = atoi(argv[1]);
+
+
+	if (argc < 3){
+        perror("SERVER FORMAT ERROR, ./servidor -p <port>");
+    }
+	int puerto = atoi(argv[2]);
 	int32_t netPuerto = (int32_t)puerto;
 	bzero((char *)&server_addr, sizeof(server_addr));
 	server_addr.sin_family      = AF_INET;
@@ -786,7 +787,7 @@ int main(int argc, char *argv[]){
 		printf("Error en listen");
 		return -1;
 	}
-    printf("s> init server 127.0.0.1: %d", puerto);
+    printf("s> init server 127.0.0.1 : %d", puerto);
 
 	// Inicializar mutex y variables condicionales
     pthread_mutex_init(&mutex_mensaje, NULL);
