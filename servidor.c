@@ -48,7 +48,7 @@ void crear_directorio_para_usuario(const char *username) {
     fclose(archivo);
 }
 
-int eliminar_usuario(char *path, const char *usuario) {
+int borrar_linea(char *path, const char *usuario) {
     // Abre el archivo usuarios.txt en modo de lectura y escritura
     FILE *archivo = fopen(path, "r+");
     if (archivo == NULL) {
@@ -163,14 +163,14 @@ int crear_archivo_descripcion(const char *username, const char *nombre_archivo, 
     // Cerrar el archivo
     fclose(archivo);
 
-    printf("Archivo \"%s\" creado para el usuario \"%s\" con la descripción \"%s\"\n", nombre_archivo, username, descripcion);
+    printf("Archivo \"%s\" creado para el usuario \"%s\" con la descripción \"%s\"", nombre_archivo, username, descripcion);
     
     return 0;
 }
 
 
 
-int escribir_usuario(char *path, char *usuario){
+int escribir_archivo(char *path, char *usuario){
     FILE *fp = fopen(path, "a");
     if (fp == NULL) {
         perror("Error al abrir el archivo\n");
@@ -238,11 +238,11 @@ int verificar_archivo_existente(const char *username, char *nombre_archivo) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-        printf("Archivo: %s\n", entry->d_name);
-        fflush(stdout);
+        // printf("Archivo: %s", entry->d_name);
+        // fflush(stdout);
 
-        printf("Archivo 2: %s\n", nombre_archivo);
-        fflush(stdout);
+        // printf("Archivo 2: %s", nombre_archivo);
+        // fflush(stdout);
 
         // Quitar la extensión ".txt" del nombre del archivo
         char nombre_sin_extension[256];
@@ -252,7 +252,7 @@ int verificar_archivo_existente(const char *username, char *nombre_archivo) {
             *punto = '\0'; // Coloca un carácter nulo para truncar la cadena en el punto
         }
 
-        printf("nombre sin extension: %s\n", nombre_sin_extension);
+        printf("nombre sin extension: %s", nombre_sin_extension);
         fflush(stdout);
         // Verificar si el archivo tiene el mismo nombre que el buscado
         if (strcmp(nombre_sin_extension, nombre_archivo) == 0) {
@@ -338,7 +338,7 @@ int tratar_peticion(int *s) {
 			return -1;
         } else if (usuario_existente == 0){
             // Abrir el archivo de texto para escritura (agregar al final)
-            int escribir = escribir_usuario("usuarios.txt", valor_total);
+            int escribir = escribir_archivo("usuarios.txt", valor_total);
             if (escribir == -1) {
                 devolucion = 50;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -373,7 +373,7 @@ int tratar_peticion(int *s) {
                 perror("Error al eliminar el directorio");
             }
 
-            int eliminar = eliminar_usuario("usuarios.txt", valor_total);
+            int eliminar = borrar_linea("usuarios.txt", valor_total);
             if (eliminar == -1){
                 devolucion = 51;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -438,7 +438,7 @@ int tratar_peticion(int *s) {
 
         int connected = comprobar_usuario("conectados.txt", valor_total);
         if (connected == 1) {
-            int eliminar = eliminar_usuario("conectados.txt", valor_total);
+            int eliminar = borrar_linea("conectados.txt", valor_total);
             if (eliminar == -1){
                 devolucion = 51;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -478,7 +478,6 @@ int tratar_peticion(int *s) {
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
             return -1;
         }
-
         
         int archivo_existente = verificar_archivo_existente(valor_total, fileName);
         if (archivo_existente == 1) {
@@ -494,7 +493,16 @@ int tratar_peticion(int *s) {
                 close(s_local); 
                 return -1;
             }
-            
+            char path[256];
+            char content[256];
+            strcpy(path, "usuarios/");
+            strcat(path, valor_total);
+            strcat(path, "/lista_archivos.txt");
+            strcpy(content, fileName);
+            strcat(content, " \"");
+            strcat(content, fileContent);
+            strcat(content, "\"");
+            escribir_archivo(path, content);
             devolucion = 48;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
         }
@@ -530,6 +538,11 @@ int tratar_peticion(int *s) {
 
         }else if(archivo_existente == 1){
             int borrar = borrar_archivo(valor_total, fileName);
+            char path[256];
+            strcpy(path, "usuarios/");
+            strcat(path, valor_total);
+            strcat(path, "/lista_archivos.txt");
+            borrar_linea(path, fileName);
             if (borrar == -1){
                 devolucion = 52;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
