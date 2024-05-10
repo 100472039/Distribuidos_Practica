@@ -35,6 +35,17 @@ void crear_directorio_para_usuario(const char *username) {
     } else {
         perror("Error al crear el directorio");
     }
+    // Crear el archivo lista_archivos.txt dentro del directorio del usuario
+    char archivo_path[256];
+    // snprintf(archivo_path, sizeof(512), "%s/lista_archivos.txt", path);
+    strcpy(archivo_path, path);
+    strcat(archivo_path, "/lista_archivos.txt");
+    FILE *archivo = fopen(archivo_path, "w");
+    if (archivo == NULL) {
+        perror("Error al crear el archivo lista_archivos.txt");
+        return;
+    }
+    fclose(archivo);
 }
 
 int eliminar_usuario(char *path, const char *usuario) {
@@ -272,6 +283,27 @@ int borrar_archivo(const char *username, const char *nombre_archivo) {
     }
 }
 
+int contar_numero_archivos(char *path){
+    DIR *dir;
+    struct dirent *ent;
+    int file_count = 0; // Contador de archivos
+
+    // Abrir el directorio
+    if ((dir = opendir(path)) != NULL) {
+        // Contar el número de archivos en el directorio
+        while ((ent = readdir(dir)) != NULL) {
+            // Ignorar las entradas especiales "." y ".."
+            if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
+                file_count++;
+            }
+        }
+
+        // Reiniciar el puntero del directorio
+        rewinddir(dir);
+    }
+    return file_count;
+}
+
 int tratar_peticion(int *s) {
     // Declaración de las variables que se van a utilizar
     int s_local;
@@ -462,6 +494,7 @@ int tratar_peticion(int *s) {
                 close(s_local); 
                 return -1;
             }
+            
             devolucion = 48;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
         }
@@ -586,6 +619,108 @@ int tratar_peticion(int *s) {
 
         // Cerrar el archivo
         fclose(fp);
+    }
+
+    if(strcmp("LIST_CONTENT", op_recibido) == 0){
+        char *usuario_deseado = (char *)malloc(256);
+
+        recibir_mensaje(s_local, valor_total);
+
+        // Comprobar que el usuario actual existe
+        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        if (usuario_existente == 0) {
+                devolucion = 49;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                return -1;
+        }
+
+        // Comprobar que el usuario actual está conectado
+        int connected = comprobar_usuario("conectados.txt", valor_total);
+        if (connected == 0) {
+            devolucion = 50;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+            return -1; 
+        }
+
+        recibir_mensaje(s_local, usuario_deseado);
+        printf("Listar contenido de %s para %s", usuario_deseado, valor_total);
+
+        // Comprobar que el usuario al que se quiere acceder existe
+        usuario_existente = comprobar_usuario("usuarios.txt", usuario_deseado);
+        if (usuario_existente == 0) {
+                devolucion = 49;
+                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                return -1;
+        }
+
+        devolucion = 48;
+        sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        sleep(0.1);
+
+        char path[128];
+        strcpy(path, "usuarios/");
+        strcat(path, usuario_deseado);
+        printf("Path: %s", path);
+        int file_count = contar_numero_archivos(path);
+
+        // Imprimir el número de archivos
+        printf("Número de archivos en el directorio: %d", file_count);
+        devolucion = file_count;
+        sendMessage(s_local, (char *)&devolucion, sizeof(char));
+        sleep(0.1);
+    
+        DIR *dir;
+        struct dirent *ent;
+        char filename[256];
+
+        // Abrir el directorio
+        if ((dir = opendir(path)) != NULL) {
+            // Leer cada entrada en el directorio
+            while ((ent = readdir(dir)) != NULL) {
+                // Ignorar las entradas especiales "." y ".."
+                if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
+                    // Imprimir el nombre del archivo
+                    strcpy(filename, ent->d_name);
+                    printf("Nombre del archivo: %s\n", filename);
+
+                    // Abrir el archivo
+                    FILE *archivo;
+                    char filename_path[256]; // Tamaño suficiente para la ruta completa
+                    // snprintf(filename, sizeof(filename), "%s/%s", path, ent->d_name);
+                    strcpy(filename_path, path);
+                    strcat(filename_path, "/");
+                    strcat(filename_path, ent->d_name);
+                    printf("Filename: %s", filename_path);
+                    archivo = fopen(filename_path, "r");
+                    
+                    // Verificar si se pudo abrir el archivo
+                    if (archivo == NULL) {
+                        perror("Error al abrir el archivo");
+                        return EXIT_FAILURE;
+                    }
+
+                    // Leer y mostrar el contenido del archivo
+                    char description[256];
+                    if (fgets(description, sizeof(description), archivo) == NULL) {
+                        perror("No se pudo leer la descripción");
+                        fclose(archivo);
+                        continue; // Saltar a la siguiente iteración
+                    }
+                    printf("Descripción: %s\n", description);
+                    // Cerrar el archivo
+                    fclose(archivo);
+                    char message[516];
+                    sprintf(message, "\t%s \"%s\"", filename, description);
+                    sendMessage(s_local, message, strlen(message));
+                }
+            }
+            closedir(dir);
+            
+        } else {
+            // Si no se pudo abrir el directorio
+            perror("Error al abrir el directorio");
+            return EXIT_FAILURE;
+        }
     }
 
 

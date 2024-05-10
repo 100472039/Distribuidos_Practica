@@ -5,6 +5,7 @@ import threading
 import sys 
 import time
 import threading
+import builtins
 
 class client :
 
@@ -23,7 +24,6 @@ class client :
     _user = None
     thread = None
     # ******************** METHODS *******************
-
 
     @staticmethod
     def register(user):
@@ -52,11 +52,11 @@ class client :
             resultado = resultado.decode()
 
             if resultado == "0":
-                print("REGISTER OK")
+                print("c> REGISTER OK")
             elif resultado == "1":
-                print("USERNAME IN USE")
+                print("c> USERNAME IN USE")
             elif resultado == "2":
-                print("REGISTER FAIL")
+                print("c> REGISTER FAIL")
         finally:
             print('closing socket')
             sock.close()
@@ -90,11 +90,11 @@ class client :
             resultado = resultado.decode()
 
             if resultado == "0":
-                print("UNREGISTER OK")
+                print("c> UNREGISTER OK")
             elif resultado == "1":
-                print("USER DOES NOT EXIST")
+                print("c> USER DOES NOT EXIST")
             elif resultado == "2":
-                print("UNREGISTER FAIL")
+                print("c> UNREGISTER FAIL")
         finally:
             print('closing socket')
             sock.close()
@@ -103,12 +103,12 @@ class client :
     @staticmethod
     def handle_requests(server_socket):
         # server_socket.listen(5)
-        print("Funcion finalizada")
+        print("c> Funcion finalizada")
         while client.thread_running:
             client_socket, _ = server_socket.accept()
             # Aquí manejarías la solicitud de descarga
         server_socket.close()
-        print("Funcion finalizada")
+        print("c> Funcion finalizada")
         
     
     @staticmethod
@@ -143,8 +143,8 @@ class client :
                 for character in ip:
                     sock.sendall(character.encode())
                 sock.sendall(b'\0')
-                print("Puerto de escucha: ", port)
-                print("IP: ", ip)
+                print("c> Puerto de escucha: ", port)
+                print("c> IP: ", ip)
                 # Paso 5: Recibir la respuesta del servidor
                 resultado = sock.recv(1024)
                 resultado = resultado.decode()
@@ -155,13 +155,13 @@ class client :
                     client.thread = threading.Thread(target=client.handle_requests, args=(server_socket,), daemon=True)
                     client.thread.start()
                     client._user = user
-                    print("CONNECT OK")
+                    print("c> CONNECT OK")
                 elif resultado == "1":
-                    print("CONNECT FAIL, USER DOES NOT EXIST")
+                    print("c> CONNECT FAIL, USER DOES NOT EXIST")
                 elif resultado == "2":
-                    print("USER ALREADY CONNECTED")
+                    print("c> USER ALREADY CONNECTED")
                 else:
-                    print("CONNECT FAIL")
+                    print("c> CONNECT FAIL")
 
             finally:
                 # Paso 7: Cerrar la conexión
@@ -198,12 +198,12 @@ class client :
 
             if resultado == "0":
                 client.thread_running = False
-                
-                print("DISCONNECT OK")
+                client._user = None
+                print("c> DISCONNECT OK")
             elif resultado == "1":
-                print("USER DOES NOT EXIST")
+                print("c> USER DOES NOT EXIST")
             elif resultado == "2":
-                print("DISCONNECT FAIL")
+                print("c> DISCONNECT FAIL")
         finally:
             print('closing socket')
             sock.close()
@@ -233,12 +233,12 @@ class client :
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
-            print("filename:",str(fileName))
+            print("c> filename:",str(fileName))
             for character in fileName:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
-            print("description:", str(description))
+            print("c> description:", str(description))
             for character in description:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
@@ -247,15 +247,15 @@ class client :
             resultado = resultado.decode()
 
             if resultado == "0":
-                print("PUBLISH OK")
+                print("c> PUBLISH OK")
             elif resultado == "1":
-                print("PUBLISH FAIL, USER DOES NOT EXIST")
+                print("c> PUBLISH FAIL, USER DOES NOT EXIST")
             elif resultado == "2":
-                print("PUBLISH FAIL, USER NOT CONNECTED")
+                print("c> PUBLISH FAIL, USER NOT CONNECTED")
             elif resultado == "3":
-                print("PUBLISH FAIL, CONTENT ALREADY PUBISHED")
+                print("c> PUBLISH FAIL, CONTENT ALREADY PUBISHED")
             elif resultado == "4":
-                print("PUBLISH FAIL")
+                print("c> PUBLISH FAIL")
         finally:
             print('closing socket')
             sock.close()
@@ -285,7 +285,7 @@ class client :
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
-            print("filename:",str(fileName))
+            print("c> filename:",str(fileName))
             for character in fileName:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
@@ -294,15 +294,15 @@ class client :
             resultado = resultado.decode()
 
             if resultado == "0":
-                print("DELETE OK")
+                print("c> DELETE OK")
             elif resultado == "1":
-                print("DELETE FAIL, USER DOES NOT EXIST")
+                print("c> DELETE FAIL, USER DOES NOT EXIST")
             elif resultado == "2":
-                print("DELETE FAIL, USER NOT CONNECTED")
+                print("c> DELETE FAIL, USER NOT CONNECTED")
             elif resultado == "3":
-                print("DELETE FAIL, CONTENT NOT PUBISHED")
+                print("c> DELETE FAIL, CONTENT NOT PUBISHED")
             elif resultado == "4":
-                print("DELETE FAIL")
+                print("c> DELETE FAIL")
         finally:
             print('closing socket')
             sock.close()
@@ -327,17 +327,17 @@ class client :
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
             
-            print("Usted es el usuario "+str(client._user))
+            print("c> Usted es el usuario "+str(client._user))
             for character in client._user:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
             resultado = sock.recv(1024)
             resultado = resultado.decode()
-            print("Resultado: "+resultado)
+            print("c> Resultado: "+resultado)
 
             if resultado == "0":
-                print("LIST_USERS OK")
+                print("c> LIST_USERS OK")
                 # Recibe número de filas a imprimir
                 resultado = ""
                 n_lineas = sock.recv(1024)
@@ -356,11 +356,11 @@ class client :
                 # resultado = resultado.decode()
                 print(resultado)
             elif resultado == "1":
-                print("LIST_USERS FAIL, USER DOES NOT EXIST")
+                print("c> LIST_USERS FAIL, USER DOES NOT EXIST")
             elif resultado == "2":
-                print("LIST_USERS FAIL, USER NOT CONNECTED")
+                print("c> LIST_USERS FAIL, USER NOT CONNECTED")
             else:
-                print("LIST_USERS FAIL")
+                print("c> LIST_USERS FAIL")
         finally:
             print('closing socket')
             sock.close()
@@ -368,7 +368,56 @@ class client :
 
     @staticmethod
     def  listcontent(user) :
-        #  Write your code here
+        #  Listar contenido
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+        arguments = len(sys.argv)
+        if arguments < 3:
+            print('Uso: client_calc  <host> <port>')
+            exit()
+
+        server_address = (sys.argv[2], int(sys.argv[4]))
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
+        register_op = "LIST_CONTENT"
+        try:
+            for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in client._user:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in user:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
+
+            if resultado == "0":
+                print("c> LIST_CONTENT OK")
+                # Recibir número de archivos
+                n_lineas = sock.recv(1024)
+                n_lineas = n_lineas.decode()
+                n_lineas = ord(n_lineas)
+                while n_lineas > 0:
+                    resultado = sock.recv(1024)
+                    message = resultado.decode()
+                    n_lineas -= 1
+                    print(message)
+            elif resultado == "1":
+                print("c> LIST_CONTENT FAIL, USER DOES NOT EXIST")
+            elif resultado == "2":
+                print("c> LIST_CONTENT FAIL, USER NOT CONNECTED")
+            elif resultado == "3":
+                print("c> LIST_CONTENT FAIL, REMOTE USER DOES NOT EXIST")
+            else:
+                print("c> LIST_CONTENT FAIL")
+        finally:
+            print('closing socket')
+            sock.close()
         return client.RC.ERROR
 
     @staticmethod
