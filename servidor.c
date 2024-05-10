@@ -678,7 +678,7 @@ int tratar_peticion(int *s) {
 
         // Imprimir el número de archivos
         printf("Número de archivos en el directorio: %d", file_count);
-        devolucion = file_count;
+        devolucion = file_count - 1;
         sendMessage(s_local, (char *)&devolucion, sizeof(char));
         sleep(0.1);
     
@@ -713,18 +713,20 @@ int tratar_peticion(int *s) {
                     }
 
                     // Leer y mostrar el contenido del archivo
-                    char description[256];
-                    if (fgets(description, sizeof(description), archivo) == NULL) {
-                        perror("No se pudo leer la descripción");
+                    if (strcmp(filename,"lista_archivos.txt") != 0){
+                        char description[256];
+                        if (fgets(description, sizeof(description), archivo) == NULL) {
+                            perror("No se pudo leer la descripción");
+                            fclose(archivo);
+                            continue; // Saltar a la siguiente iteración
+                        }
+                        printf("Descripción: %s\n", description);
+                        // Cerrar el archivo
                         fclose(archivo);
-                        continue; // Saltar a la siguiente iteración
+                        char message[516];
+                        sprintf(message, "\t%s \"%s\"", filename, description);
+                        sendMessage(s_local, message, strlen(message));
                     }
-                    printf("Descripción: %s\n", description);
-                    // Cerrar el archivo
-                    fclose(archivo);
-                    char message[516];
-                    sprintf(message, "\t%s \"%s\"", filename, description);
-                    sendMessage(s_local, message, strlen(message));
                 }
             }
             closedir(dir);

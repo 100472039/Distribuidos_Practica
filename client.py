@@ -5,6 +5,7 @@ import threading
 import sys 
 import time
 import threading
+import os
 import builtins
 
 class client :
@@ -23,6 +24,7 @@ class client :
     thread_running = False
     _user = None
     thread = None
+    conectados = []
     # ******************** METHODS *******************
 
     @staticmethod
@@ -99,17 +101,6 @@ class client :
             print('closing socket')
             sock.close()
         return client.RC.ERROR
-
-    @staticmethod
-    def handle_requests(server_socket):
-        # server_socket.listen(5)
-        print("c> Funcion finalizada")
-        while client.thread_running:
-            client_socket, _ = server_socket.accept()
-            # Aquí manejarías la solicitud de descarga
-        server_socket.close()
-        print("c> Funcion finalizada")
-        
     
     @staticmethod
     def connect(user):
@@ -152,7 +143,7 @@ class client :
                 if resultado == "0":
                     client.thread_running = True
                     server_socket.listen(5)
-                    client.thread = threading.Thread(target=client.handle_requests, args=(server_socket,), daemon=True)
+                    client.thread = threading.Thread(target = client.handle_requests, args=(server_socket,), daemon=True)
                     client.thread.start()
                     client._user = user
                     print("c> CONNECT OK")
@@ -340,20 +331,30 @@ class client :
                 print("c> LIST_USERS OK")
                 # Recibe número de filas a imprimir
                 resultado = ""
+                palabra = ""
                 n_lineas = sock.recv(1024)
                 n_lineas = n_lineas.decode()
                 n_lineas = ord(n_lineas)
                 n_lineas = int(n_lineas)*3
-                print(n_lineas)
+                conectados = []
                 while n_lineas > 0:
                     caracter = sock.recv(1024)
                     if caracter == b'\x00':
-                        resultado += " "
+                        resultado += palabra+" "
                         n_lineas -= 1
+                        if (n_lineas+1) % 3 == 0:
+                            client.conectados.append({})
+                            client.conectados[-1]["nombre"] = palabra
+                        if (n_lineas+2) % 3 == 0:
+                            # client.conectados[-1].append(palabra)
+                            client.conectados[-1]["ip"] = palabra
                         if n_lineas % 3 == 0:
+                            # client.conectados[-1].append(palabra)
+                            client.conectados[-1]["puerto"] = palabra
                             resultado += "\n"
-                    resultado += caracter.decode()
-                # resultado = resultado.decode()
+                        palabra = ""
+                    else:
+                        palabra += caracter.decode()
                 print(resultado)
             elif resultado == "1":
                 print("c> LIST_USERS FAIL, USER DOES NOT EXIST")
@@ -421,8 +422,70 @@ class client :
         return client.RC.ERROR
 
     @staticmethod
+    def handle_requests(server_socket):
+        # server_socket.listen(5)
+        print("c> Funcion finalizada")
+        while client.thread_running:
+            client_socket, _ = server_socket.accept()
+            print("Connection accepted from:", client_socket.getpeername())
+            request = client_socket.recv(1024).decode()
+            print(request)
+            filename = client_socket.recv(1024).decode()
+            print(filename)
+            print(client._user)
+            # path ="usuarios/"+client._user
+            user_directory = os.path.join("usuarios", client._user)
+            remote_file_path = os.path.abspath(os.path.join(user_directory, filename))
+            # Verificar si el archivo existe localmente
+            if os.path.exists(remote_file_path):
+                # Enviar código 0 para indicar que el archivo se puede transferir
+                client_socket.sendall(b'0')
+
+                # Abrir el archivo y enviar su contenido al cliente
+                with open(filename, 'rb') as file:
+                    while True:
+                        data = file.read(1024)
+                        if not data:
+                            break
+                        client_socket.sendall(data)
+            else:
+                # Enviar código 1 para indicar que el archivo no existe
+                client_socket.sendall(b'\x01')
+
+            # Cerrar la conexión con el cliente remoto
+            client_socket.close()
+        server_socket.close()
+        
+    @staticmethod
     def  getfile(user,  remote_FileName,  local_FileName) :
-        #  Write your code here
+        #  Listar contenido
+        # Paso 1: Conectar al cliente remoto
+        remote_client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Tomar ip y puerto
+        if len(client.conectados) == 0:
+            print("c> GET_FILE FAIL, LIST_USERS NOT DONE")
+            return client.RC.ERROR
+        for diccionario in client.conectados:
+            if diccionario["nombre"] == user:
+                ip = diccionario["ip"]
+                puerto = diccionario["puerto"]
+                print("c> IP: ", ip)
+                print("c> Puerto: ", puerto)
+
+        tupla = (ip, int(puerto))
+        remote_client_socket.connect(tupla)  # Aquí debes obtener el puerto del cliente remoto
+        
+        # # Paso 2: Enviar la cadena "GET FILE"
+        remote_client_socket.sendall("GET FILE".encode())
+        time.sleep(0.1)
+        # # Paso 3: Enviar el nombre del archivo remoto
+        remote_client_socket.sendall(remote_FileName.encode())
+        
+        # Paso 4: Recibir el resultado de la operación
+        # resultado = remote_client_socket.recv(1)
+        # resultado = int.from_bytes(resultado, byteorder='big')
+
         return client.RC.ERROR
 
     # *
