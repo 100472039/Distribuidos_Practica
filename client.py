@@ -7,6 +7,7 @@ import time
 import threading
 import os
 import builtins
+import zeep
 
 class client :
 
@@ -28,6 +29,24 @@ class client :
     # ******************** METHODS *******************
 
     @staticmethod
+    def get_datetime_from_service():
+        # URL del servicio web SOAP
+        wsdl = "http://localhost:8000/?wsdl"
+
+        # Crear un cliente Zeep
+        soap = zeep.Client(wsdl=wsdl) 
+
+        try:
+            # Llamar al método remoto para obtener la fecha y hora actual
+            result = soap.service.get_datetime()
+            print("c> Fecha y hora del servicio web:", result)
+            return result
+        except Exception as e:
+            print("Error al llamar al servicio web:", e)
+
+        return client.RC.ERROR
+
+    @staticmethod
     def register(user):
         # Realizar registro
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,8 +60,14 @@ class client :
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         register_op = "REGISTER"
+        fecha = client.get_datetime_from_service()
+        
         try:
             for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in fecha:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
             
@@ -79,8 +104,14 @@ class client :
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         register_op = "UNREGISTER"
+        fecha = client.get_datetime_from_service()
+        
         try:
             for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in fecha:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
@@ -104,62 +135,68 @@ class client :
     
     @staticmethod
     def connect(user):
-            # Paso 1: Obtener un puerto libre en el cliente
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket.bind(('localhost', 0))
-            ip, port = server_socket.getsockname()
+        # Paso 1: Obtener un puerto libre en el cliente
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind(('localhost', 0))
+        ip, port = server_socket.getsockname()
+        
+        # Paso 2: Crear un hilo para manejar las solicitudes de descarga
             
-            # Paso 2: Crear un hilo para manejar las solicitudes de descarga
-                
+        
+        # Paso 3: Conectar al servidor principal
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_address = ('localhost', 8080)  # Cambia esto por la IP y puerto del servidor principal
+        sock.connect(server_address)
+
+        # Paso 4: Enviar la solicitud de conexión con la información necesaria
+        register_op = "CONNECT"
+        fecha = client.get_datetime_from_service()
+        
+        try:
+            for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+            for character in user:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in fecha:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
             
-            # Paso 3: Conectar al servidor principal
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_address = ('localhost', 8080)  # Cambia esto por la IP y puerto del servidor principal
-            sock.connect(server_address)
+            port = str(port)
+            for character in port:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+            for character in ip:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+            print("c> Puerto de escucha: ", port)
+            print("c> IP: ", ip)
+            # Paso 5: Recibir la respuesta del servidor
+            resultado = sock.recv(1024)
+            resultado = resultado.decode()
+            # Paso 6: Procesar la respuesta del servidor
+            if resultado == "0":
+                client.thread_running = True
+                server_socket.listen(5)
+                client.thread = threading.Thread(target = client.handle_requests, args=(server_socket,), daemon=True)
+                client.thread.start()
+                client._user = user
+                print("c> CONNECT OK")
+            elif resultado == "1":
+                print("c> CONNECT FAIL, USER DOES NOT EXIST")
+            elif resultado == "2":
+                print("c> USER ALREADY CONNECTED")
+            else:
+                print("c> CONNECT FAIL")
 
-            # Paso 4: Enviar la solicitud de conexión con la información necesaria
-            register_op = "CONNECT"
-            try:
-                for character in register_op:
-                    sock.sendall(character.encode())
-                sock.sendall(b'\0')
-                for character in user:
-                    sock.sendall(character.encode())
-                sock.sendall(b'\0')
-                
-                port = str(port)
-                for character in port:
-                    sock.sendall(character.encode())
-                sock.sendall(b'\0')
-                for character in ip:
-                    sock.sendall(character.encode())
-                sock.sendall(b'\0')
-                print("c> Puerto de escucha: ", port)
-                print("c> IP: ", ip)
-                # Paso 5: Recibir la respuesta del servidor
-                resultado = sock.recv(1024)
-                resultado = resultado.decode()
-                # Paso 6: Procesar la respuesta del servidor
-                if resultado == "0":
-                    client.thread_running = True
-                    server_socket.listen(5)
-                    client.thread = threading.Thread(target = client.handle_requests, args=(server_socket,), daemon=True)
-                    client.thread.start()
-                    client._user = user
-                    print("c> CONNECT OK")
-                elif resultado == "1":
-                    print("c> CONNECT FAIL, USER DOES NOT EXIST")
-                elif resultado == "2":
-                    print("c> USER ALREADY CONNECTED")
-                else:
-                    print("c> CONNECT FAIL")
+        finally:
+            # Paso 7: Cerrar la conexión
+            print('Closing socket')
+            sock.close()
 
-            finally:
-                # Paso 7: Cerrar la conexión
-                print('Closing socket')
-                sock.close()
-
-            return client.RC.ERROR
+        return client.RC.ERROR
 
     
     @staticmethod
@@ -175,8 +212,14 @@ class client :
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         register_op = "DISCONNECT"
+        fecha = client.get_datetime_from_service()
+        
         try:
             for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in fecha:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
@@ -214,9 +257,15 @@ class client :
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         register_op = "PUBLISH"
+        fecha = client.get_datetime_from_service()
+        
         try:
             
             for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in fecha:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
@@ -265,10 +314,15 @@ class client :
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         register_op = "DELETE"
-
+        fecha = client.get_datetime_from_service()
+        
         try:
             
             for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in fecha:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
@@ -313,8 +367,14 @@ class client :
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         register_op = "LIST_USERS"
+        fecha = client.get_datetime_from_service()
+        
         try:
             for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in fecha:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
             
@@ -381,8 +441,14 @@ class client :
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         register_op = "LIST_CONTENT"
+        fecha = client.get_datetime_from_service()
+        
         try:
             for character in register_op:
+                sock.sendall(character.encode())
+            sock.sendall(b'\0')
+
+            for character in fecha:
                 sock.sendall(character.encode())
             sock.sendall(b'\0')
 
@@ -521,7 +587,6 @@ class client :
     # * @brief Command interpreter for the client. It calls the protocol functions.
     @staticmethod
     def shell():
-
         while (True) :
             try :
                 command = input("c> ")

@@ -308,6 +308,7 @@ int tratar_peticion(int *s) {
     // Declaración de las variables que se van a utilizar
     int s_local;
     char *op_recibido = (char *)malloc(256);
+    char *fecha_recibida = (char *)malloc(256);
     char *valor_total = (char *)malloc(256);
     int devolucion;
     
@@ -319,6 +320,9 @@ int tratar_peticion(int *s) {
 
     // Recibir operación
     recibir_mensaje(s_local, op_recibido);
+
+    // Recibir fecha
+    recibir_mensaje(s_local, fecha_recibida);
 
     // Recibir usuario
     recibir_mensaje(s_local, valor_total);
