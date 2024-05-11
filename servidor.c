@@ -11,6 +11,12 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <signal.h>
+#include "rpc_service.h"
+#include "rpc_service_clnt.c"
+
+#include "rpc_service_xdr.c"
+
+
 
 #include "send-recv.h"
 #include "send-recv.c"
@@ -46,6 +52,39 @@ void crear_directorio_para_usuario(const char *username) {
         return;
     }
     fclose(archivo);
+}
+
+int eliminar_directorio(const char *path) {
+    DIR *dir;
+    struct dirent *entry;
+    char full_path[256];
+
+    // Abrir el directorio
+    dir = opendir(path);
+    if (dir == NULL) {
+        perror("Error al abrir el directorio");
+        return -1;
+    }
+
+    // Iterar sobre cada elemento del directorio
+    while ((entry = readdir(dir)) != NULL) {
+        // Ignorar los directorios . y ..
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            // Construir la ruta completa del elemento
+            strcpy(full_path, path);
+            strcat(full_path, "/");
+            strcat(full_path, entry->d_name);
+            printf("Archivo a eliminar: %s", full_path);
+            // snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+            // Eliminar el elemento
+            if (remove(full_path) != 0) {
+                perror("Error al eliminar el archivo");
+                closedir(dir);
+                return -1;
+            }
+        }
+    }
+    return 0;
 }
 
 int borrar_linea(char *path, const char *usuario) {
@@ -252,8 +291,6 @@ int verificar_archivo_existente(const char *username, char *nombre_archivo) {
             *punto = '\0'; // Coloca un carácter nulo para truncar la cadena en el punto
         }
 
-        printf("nombre sin extension: %s", nombre_sin_extension);
-        fflush(stdout);
         // Verificar si el archivo tiene el mismo nombre que el buscado
         if (strcmp(nombre_sin_extension, nombre_archivo) == 0) {
             closedir(dir);
@@ -328,10 +365,31 @@ int tratar_peticion(int *s) {
     recibir_mensaje(s_local, valor_total);
     printf("OPERATION FROM %s", valor_total);
 
+    //Enviar argumentos al servidor RPC
+    CLIENT *clnt;
+    enum clnt_stat retval_1;
+    int result_1;
+    char *host;
+    host = "localhost";
+
+    clnt = clnt_create (host, SERVER, SERVER_VERS, "tcp");
+    if (clnt == NULL) {
+        clnt_pcreateerror (host);
+        exit (1);
+    }
+    
+    retval_1 = register_1(valor_total, op_recibido, fecha_recibida, &result_1, clnt);
+    if (retval_1 != RPC_SUCCESS) {
+        clnt_perror (clnt, "call failed");
+    }
+    clnt_destroy (clnt);
+
     if (strcmp("REGISTER", op_recibido) == 0){
+        
         int usuario_existente;
         printf("Realizar registro");
 
+        
         usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
 
         if (usuario_existente == 1) {
@@ -341,6 +399,7 @@ int tratar_peticion(int *s) {
             devolucion = 49;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
 			return -1;
+
         } else if (usuario_existente == 0){
             // Abrir el archivo de texto para escritura (agregar al final)
             int escribir = escribir_archivo("usuarios.txt", valor_total);
@@ -370,10 +429,14 @@ int tratar_peticion(int *s) {
             // Eliminar directorio del usuario
             char path[256];
             snprintf(path, sizeof(path), "usuarios/%s", valor_total);
-            if (remove(path) == 0) {
-                printf("Directorio eliminado para el usuario %s", valor_total);
+            if (eliminar_directorio(path) == 0) {
+                printf("Archivos del directorio eliminados para el usuario %s", valor_total);
             } else {
                 perror("Error al eliminar el directorio");
+            }
+            if (remove(path) != 0) {
+                perror("Error al eliminar el directorio");
+                return -1;
             }
 
             int eliminar = borrar_linea("usuarios.txt", valor_total);

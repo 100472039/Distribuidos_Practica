@@ -8,6 +8,8 @@ import threading
 import os
 import builtins
 import zeep
+import string
+import random
 
 class client :
 
@@ -22,6 +24,7 @@ class client :
     # ****************** ATTRIBUTES ******************
     _server = None
     _port = -1
+    _server_sock = None
     thread_running = False
     _user = None
     thread = None
@@ -45,10 +48,9 @@ class client :
             print("Error al llamar al servicio web:", e)
 
         return client.RC.ERROR
-
+    
     @staticmethod
-    def register(user):
-        # Realizar registro
+    def connect_with_server():
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             
         arguments = len(sys.argv)
@@ -59,23 +61,29 @@ class client :
         server_address = (sys.argv[2], int(sys.argv[4]))
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
+        client._server_sock = sock
+    
+    @staticmethod
+    def send(message):
+        for character in message:
+            client._server_sock.sendall(character.encode())
+        client._server_sock.sendall(b'\0')
+
+    @staticmethod
+    def register(user):
+        # Realizar registro
+        sock = client.connect_with_server()
         register_op = "REGISTER"
         fecha = client.get_datetime_from_service()
         
         try:
-            for character in register_op:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(register_op)
 
-            for character in fecha:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fecha)
             
-            for character in user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(user)
 
-            resultado = sock.recv(1024)
+            resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
 
             if resultado == "0":
@@ -86,40 +94,25 @@ class client :
                 print("c> REGISTER FAIL")
         finally:
             print('closing socket')
-            sock.close()
+            client._server_sock.close()
         return client.RC.ERROR
 
    
     @staticmethod
     def  unregister(user) :
         # Registrar usuario
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-        arguments = len(sys.argv)
-        if arguments < 3:
-            print('Uso: client_calc  <host> <port>')
-            exit()
-
-        server_address = (sys.argv[2], int(sys.argv[4]))
-        print('connecting to {} port {}'.format(*server_address))
-        sock.connect(server_address)
+        sock = client.connect_with_server()
         register_op = "UNREGISTER"
         fecha = client.get_datetime_from_service()
         
         try:
-            for character in register_op:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(register_op)
 
-            for character in fecha:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
-
-            for character in user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fecha)
             
-            resultado = sock.recv(1024)
+            client.send(user)
+            
+            resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
 
             if resultado == "0":
@@ -130,7 +123,7 @@ class client :
                 print("c> UNREGISTER FAIL")
         finally:
             print('closing socket')
-            sock.close()
+            client._server_sock.close()
         return client.RC.ERROR
     
     @staticmethod
@@ -144,37 +137,26 @@ class client :
             
         
         # Paso 3: Conectar al servidor principal
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_address = ('localhost', 8080)  # Cambia esto por la IP y puerto del servidor principal
-        sock.connect(server_address)
+        sock = client.connect_with_server()
 
         # Paso 4: Enviar la solicitud de conexión con la información necesaria
         register_op = "CONNECT"
         fecha = client.get_datetime_from_service()
         
         try:
-            for character in register_op:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
-            for character in user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(register_op)
 
-            for character in fecha:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fecha)
+            
+            client.send(user)
             
             port = str(port)
-            for character in port:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
-            for character in ip:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(port)
+            client.send(ip)
             print("c> Puerto de escucha: ", port)
             print("c> IP: ", ip)
             # Paso 5: Recibir la respuesta del servidor
-            resultado = sock.recv(1024)
+            resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
             # Paso 6: Procesar la respuesta del servidor
             if resultado == "0":
@@ -194,40 +176,25 @@ class client :
         finally:
             # Paso 7: Cerrar la conexión
             print('Closing socket')
-            sock.close()
+            client._server_sock.close()
 
         return client.RC.ERROR
 
     
     @staticmethod
     def  disconnect(user) :
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-        arguments = len(sys.argv)
-        if arguments < 3:
-            print('Uso: client_calc  <host> <port>')
-            exit()
-
-        server_address = (sys.argv[2], int(sys.argv[4]))
-        print('connecting to {} port {}'.format(*server_address))
-        sock.connect(server_address)
+        sock = client.connect_with_server()
         register_op = "DISCONNECT"
         fecha = client.get_datetime_from_service()
         
         try:
-            for character in register_op:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(register_op)
 
-            for character in fecha:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
-
-            for character in user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fecha)
             
-            resultado = sock.recv(1024)
+            client.send(user)
+            
+            resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
 
             if resultado == "0":
@@ -240,50 +207,31 @@ class client :
                 print("c> DISCONNECT FAIL")
         finally:
             print('closing socket')
-            sock.close()
+            client._server_sock.close()
 
         return client.RC.ERROR
 
     @staticmethod
     def  publish(fileName,  description) :
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-        arguments = len(sys.argv)
-        if arguments < 3:
-            print('Uso: client_calc  <host> <port>')
-            exit()
-
-        server_address = (sys.argv[2], int(sys.argv[4]))
-        print('connecting to {} port {}'.format(*server_address))
-        sock.connect(server_address)
+        sock = client.connect_with_server()
         register_op = "PUBLISH"
         fecha = client.get_datetime_from_service()
         
         try:
             
-            for character in register_op:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(register_op)
 
-            for character in fecha:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
-
-            for character in client._user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fecha)
+            
+            client.send(client._user)
 
             print("c> filename:",str(fileName))
-            for character in fileName:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fileName)
 
             print("c> description:", str(description))
-            for character in description:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(description)
             
-            resultado = sock.recv(1024)
+            resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
 
             if resultado == "0":
@@ -298,44 +246,27 @@ class client :
                 print("c> PUBLISH FAIL")
         finally:
             print('closing socket')
-            sock.close()
+            client._server_sock.close()
         return client.RC.ERROR
 
     @staticmethod
     def  delete(fileName) :
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-        arguments = len(sys.argv)
-        if arguments < 3:
-            print('Uso: client_calc  <host> <port>')
-            exit()
-
-        server_address = (sys.argv[2], int(sys.argv[4]))
-        print('connecting to {} port {}'.format(*server_address))
-        sock.connect(server_address)
+        sock = client.connect_with_server()
         register_op = "DELETE"
         fecha = client.get_datetime_from_service()
         
         try:
             
-            for character in register_op:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(register_op)
 
-            for character in fecha:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
-
-            for character in client._user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fecha)
+            
+            client.send(client._user)
 
             print("c> filename:",str(fileName))
-            for character in fileName:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fileName)
             
-            resultado = sock.recv(1024)
+            resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
 
             if resultado == "0":
@@ -350,40 +281,26 @@ class client :
                 print("c> DELETE FAIL")
         finally:
             print('closing socket')
-            sock.close()
+            client._server_sock.close()
         return client.RC.ERROR
 
     @staticmethod
     def  listusers() :
         #  Listar usuarios
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-        arguments = len(sys.argv)
-        if arguments < 3:
-            print('Uso: client_calc  <host> <port>')
-            exit()
-
-        server_address = (sys.argv[2], int(sys.argv[4]))
-        print('connecting to {} port {}'.format(*server_address))
-        sock.connect(server_address)
+        sock = client.connect_with_server()
         register_op = "LIST_USERS"
         fecha = client.get_datetime_from_service()
         
         try:
-            for character in register_op:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(register_op)
 
-            for character in fecha:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fecha)
+            
+            client.send(client._user)
             
             print("c> Usted es el usuario "+str(client._user))
-            for character in client._user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
 
-            resultado = sock.recv(1024)
+            resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
             print("c> Resultado: "+resultado)
 
@@ -392,13 +309,13 @@ class client :
                 # Recibe número de filas a imprimir
                 resultado = ""
                 palabra = ""
-                n_lineas = sock.recv(1024)
+                n_lineas = client._server_sock.recv(1024)
                 n_lineas = n_lineas.decode()
                 n_lineas = ord(n_lineas)
                 n_lineas = int(n_lineas)*3
                 conectados = []
                 while n_lineas > 0:
-                    caracter = sock.recv(1024)
+                    caracter = client._server_sock.recv(1024)
                     if caracter == b'\x00':
                         resultado += palabra+" "
                         n_lineas -= 1
@@ -424,53 +341,36 @@ class client :
                 print("c> LIST_USERS FAIL")
         finally:
             print('closing socket')
-            sock.close()
+            client._server_sock.close()
         return client.RC.ERROR
 
     @staticmethod
     def  listcontent(user) :
         #  Listar contenido
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-        arguments = len(sys.argv)
-        if arguments < 3:
-            print('Uso: client_calc  <host> <port>')
-            exit()
-
-        server_address = (sys.argv[2], int(sys.argv[4]))
-        print('connecting to {} port {}'.format(*server_address))
-        sock.connect(server_address)
+        sock = client.connect_with_server()
         register_op = "LIST_CONTENT"
         fecha = client.get_datetime_from_service()
         
         try:
-            for character in register_op:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(register_op)
 
-            for character in fecha:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(fecha)
 
-            for character in client._user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
+            client.send(client._user)
+            
+            client.send(user)
 
-            for character in user:
-                sock.sendall(character.encode())
-            sock.sendall(b'\0')
-
-            resultado = sock.recv(1024)
+            resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
 
             if resultado == "0":
                 print("c> LIST_CONTENT OK")
                 # Recibir número de archivos
-                n_lineas = sock.recv(1024)
+                n_lineas = client._server_sock.recv(1024)
                 n_lineas = n_lineas.decode()
                 n_lineas = ord(n_lineas)
                 while n_lineas > 0:
-                    resultado = sock.recv(1024)
+                    resultado = client._server_sock.recv(1024)
                     message = resultado.decode()
                     n_lineas -= 1
                     print(message)
@@ -484,7 +384,7 @@ class client :
                 print("c> LIST_CONTENT FAIL")
         finally:
             print('closing socket')
-            sock.close()
+            client._server_sock.close()
         return client.RC.ERROR
 
     @staticmethod
@@ -624,25 +524,37 @@ class client :
                         if (len(line) >= 3) :
                             #  Remove first two words
                             description = ' '.join(line[2:])
-                            client.publish(line[1], description)
+                            if client._user != None:
+                                client.publish(line[1], description)
+                            else:
+                                print("CONNECT FAIL, YOU ARE ALREADY CONNECTED AS", client._user)
                         else :
                             print("Syntax error. Usage: PUBLISH <fileName> <description>")
 
                     elif(line[0]=="DELETE") :
                         if (len(line) == 2) :
-                            client.delete(line[1])
+                            if client._user != None:
+                                client.delete(line[1])
+                            else:
+                                print("CONNECT FAIL, YOU ARE ALREADY CONNECTED AS", client._user)
                         else :
                             print("Syntax error. Usage: DELETE <fileName>")
 
                     elif(line[0]=="LIST_USERS") :
                         if (len(line) == 1) :
-                            client.listusers()
+                            if client._user != None:
+                                client.listusers()
+                            else:
+                                print("CONNECT FAIL, YOU ARE ALREADY CONNECTED AS", client._user)
                         else :
                             print("Syntax error. Use: LIST_USERS")
 
                     elif(line[0]=="LIST_CONTENT") :
                         if (len(line) == 2) :
-                            client.listcontent(line[1])
+                            if client._user != None:
+                                client.listcontent(line[1])
+                            else:
+                                print("CONNECT FAIL, YOU ARE ALREADY CONNECTED AS", client._user)
                         else :
                             print("Syntax error. Usage: LIST_CONTENT <userName>")
 
@@ -658,7 +570,10 @@ class client :
 
                     elif(line[0]=="GET_FILE") :
                         if (len(line) == 4) :
-                            client.getfile(line[1], line[2], line[3])
+                            if client._user != None:
+                                client.getfile(line[1], line[2], line[3])
+                            else:
+                                print("CONNECT FAIL, YOU ARE ALREADY CONNECTED AS", client._user)
                         else :
                             print("Syntax error. Usage: GET_FILE <userName> <remote_fileName> <local_fileName>")
 
@@ -669,6 +584,19 @@ class client :
                             break
                         else :
                             print("Syntax error. Use: QUIT")
+
+                    elif(line[0]=="TEST") :
+                        if (len(line) == 2) :
+                            if client._user != None:
+                                client.disconnect(client._user)
+                            client.register(line[1])
+                            client.connect(line[1])
+                            for i in range(10):
+                                caracteres = string.ascii_letters + string.digits + string.punctuation + " "
+                                filename = "archivo"+str(i)
+                                description = "".join(random.choice(caracteres) for _ in range(128))
+                                client.publish(filename, description)
+                            client.disconnect(line[1])
                     else :
                         print("Error: command " + line[0] + " not valid.")
             except Exception as e:
