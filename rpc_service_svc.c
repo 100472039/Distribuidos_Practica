@@ -17,75 +17,19 @@
 #endif
 
 int
-_register_1 (register_1_argument *argp, void *result, struct svc_req *rqstp)
+_operation_1 (operation_1_argument *argp, void *result, struct svc_req *rqstp)
 {
-	return (register_1_svc(argp->arg1, argp->arg2, argp->arg3, result, rqstp));
-}
-
-int
-_unregister_1 (unregister_1_argument *argp, void *result, struct svc_req *rqstp)
-{
-	return (unregister_1_svc(argp->arg1, argp->arg2, argp->arg3, result, rqstp));
-}
-
-int
-_connect_1 (connect_1_argument *argp, void *result, struct svc_req *rqstp)
-{
-	return (connect_1_svc(argp->arg1, argp->arg2, argp->arg3, result, rqstp));
-}
-
-int
-_disconnect_1 (disconnect_1_argument *argp, void *result, struct svc_req *rqstp)
-{
-	return (disconnect_1_svc(argp->arg1, argp->arg2, argp->arg3, result, rqstp));
-}
-
-int
-_publish_1 (publish_1_argument *argp, void *result, struct svc_req *rqstp)
-{
-	return (publish_1_svc(argp->arg1, argp->arg2, argp->arg3, argp->arg4, result, rqstp));
-}
-
-int
-_delete_1 (delete_1_argument *argp, void *result, struct svc_req *rqstp)
-{
-	return (delete_1_svc(argp->arg1, argp->arg2, argp->arg3, argp->arg4, result, rqstp));
-}
-
-int
-_list_users_1 (list_users_1_argument *argp, void *result, struct svc_req *rqstp)
-{
-	return (list_users_1_svc(argp->arg1, argp->arg2, argp->arg3, result, rqstp));
-}
-
-int
-_list_content_1 (list_content_1_argument *argp, void *result, struct svc_req *rqstp)
-{
-	return (list_content_1_svc(argp->arg1, argp->arg2, argp->arg3, result, rqstp));
+	return (operation_1_svc(argp->arg1, argp->arg2, argp->arg3, argp->arg4, result, rqstp));
 }
 
 static void
 server_1(struct svc_req *rqstp, register SVCXPRT *transp)
 {
 	union {
-		register_1_argument register_1_arg;
-		unregister_1_argument unregister_1_arg;
-		connect_1_argument connect_1_arg;
-		disconnect_1_argument disconnect_1_arg;
-		publish_1_argument publish_1_arg;
-		delete_1_argument delete_1_arg;
-		list_users_1_argument list_users_1_arg;
-		list_content_1_argument list_content_1_arg;
+		operation_1_argument operation_1_arg;
 	} argument;
 	union {
-		int register_1_res;
-		int unregister_1_res;
-		int connect_1_res;
-		int disconnect_1_res;
-		int publish_1_res;
-		int delete_1_res;
-		int list_users_1_res;
-		int list_content_1_res;
+		int operation_1_res;
 	} result;
 	bool_t retval;
 	xdrproc_t _xdr_argument, _xdr_result;
@@ -96,52 +40,10 @@ server_1(struct svc_req *rqstp, register SVCXPRT *transp)
 		(void) svc_sendreply (transp, (xdrproc_t) xdr_void, (char *)NULL);
 		return;
 
-	case REGISTER:
-		_xdr_argument = (xdrproc_t) xdr_register_1_argument;
+	case OPERATION:
+		_xdr_argument = (xdrproc_t) xdr_operation_1_argument;
 		_xdr_result = (xdrproc_t) xdr_int;
-		local = (bool_t (*) (char *, void *,  struct svc_req *))_register_1;
-		break;
-
-	case UNREGISTER:
-		_xdr_argument = (xdrproc_t) xdr_unregister_1_argument;
-		_xdr_result = (xdrproc_t) xdr_int;
-		local = (bool_t (*) (char *, void *,  struct svc_req *))_unregister_1;
-		break;
-
-	case CONNECT:
-		_xdr_argument = (xdrproc_t) xdr_connect_1_argument;
-		_xdr_result = (xdrproc_t) xdr_int;
-		local = (bool_t (*) (char *, void *,  struct svc_req *))_connect_1;
-		break;
-
-	case DISCONNECT:
-		_xdr_argument = (xdrproc_t) xdr_disconnect_1_argument;
-		_xdr_result = (xdrproc_t) xdr_int;
-		local = (bool_t (*) (char *, void *,  struct svc_req *))_disconnect_1;
-		break;
-
-	case PUBLISH:
-		_xdr_argument = (xdrproc_t) xdr_publish_1_argument;
-		_xdr_result = (xdrproc_t) xdr_int;
-		local = (bool_t (*) (char *, void *,  struct svc_req *))_publish_1;
-		break;
-
-	case DELETE:
-		_xdr_argument = (xdrproc_t) xdr_delete_1_argument;
-		_xdr_result = (xdrproc_t) xdr_int;
-		local = (bool_t (*) (char *, void *,  struct svc_req *))_delete_1;
-		break;
-
-	case LIST_USERS:
-		_xdr_argument = (xdrproc_t) xdr_list_users_1_argument;
-		_xdr_result = (xdrproc_t) xdr_int;
-		local = (bool_t (*) (char *, void *,  struct svc_req *))_list_users_1;
-		break;
-
-	case LIST_CONTENT:
-		_xdr_argument = (xdrproc_t) xdr_list_content_1_argument;
-		_xdr_result = (xdrproc_t) xdr_int;
-		local = (bool_t (*) (char *, void *,  struct svc_req *))_list_content_1;
+		local = (bool_t (*) (char *, void *,  struct svc_req *))_operation_1;
 		break;
 
 	default:

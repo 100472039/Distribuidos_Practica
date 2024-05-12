@@ -13,7 +13,6 @@
 #include <signal.h>
 #include "rpc_service.h"
 #include "rpc_service_clnt.c"
-
 #include "rpc_service_xdr.c"
 
 
@@ -25,7 +24,7 @@
 
 // mutex y variables condicionales para proteger la copia del mensaje
 pthread_mutex_t mutex_mensaje;
-pthread_mutex_t mutex_lista1, mutex_lista2;
+pthread_mutex_t mutex_funciones;
 int busy = true;
 pthread_cond_t cond_mensaje;
 int iniciado;
@@ -33,25 +32,31 @@ int iniciado;
 void crear_directorio_para_usuario(const char *username) {
     // Crear una cadena para contener la ruta del directorio del usuario
     char path[256];
-    snprintf(path, sizeof(path), "usuarios/%s", username); // Puedes modificar esto según la estructura de tu directorio
+    snprintf(path, sizeof(path), "usuarios/%s", username); 
 
-    // Crear el directorio
+    // Crear el directorio (zona crítica se debe proteger con un mutex)
+    pthread_mutex_lock(&mutex_funciones);
     if (mkdir(path, 0700) == 0) {
         printf("Directorio creado para el usuario %s", username);
     } else {
         perror("Error al crear el directorio");
     }
+    pthread_mutex_unlock(&mutex_funciones);
+
+
     // Crear el archivo lista_archivos.txt dentro del directorio del usuario
     char archivo_path[256];
-    // snprintf(archivo_path, sizeof(512), "%s/lista_archivos.txt", path);
     strcpy(archivo_path, path);
     strcat(archivo_path, "/lista_archivos.txt");
+
+    pthread_mutex_lock(&mutex_funciones);
     FILE *archivo = fopen(archivo_path, "w");
     if (archivo == NULL) {
         perror("Error al crear el archivo lista_archivos.txt");
         return;
     }
     fclose(archivo);
+    pthread_mutex_unlock(&mutex_funciones);
 }
 
 int eliminar_directorio(const char *path) {
@@ -66,6 +71,7 @@ int eliminar_directorio(const char *path) {
         return -1;
     }
 
+    
     // Iterar sobre cada elemento del directorio
     while ((entry = readdir(dir)) != NULL) {
         // Ignorar los directorios . y ..
@@ -74,24 +80,31 @@ int eliminar_directorio(const char *path) {
             strcpy(full_path, path);
             strcat(full_path, "/");
             strcat(full_path, entry->d_name);
-            printf("Archivo a eliminar: %s", full_path);
-            // snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+
+            // Bloquear el mutex antes de eliminar
+            pthread_mutex_lock(&mutex_funciones);
             // Eliminar el elemento
             if (remove(full_path) != 0) {
                 perror("Error al eliminar el archivo");
                 closedir(dir);
                 return -1;
             }
+
+            // Desbloquear el mutex después de eliminar
+            pthread_mutex_lock(&mutex_funciones);
         }
     }
     return 0;
 }
 
 int borrar_linea(char *path, const char *usuario) {
+
+    pthread_mutex_lock(&mutex_funciones);
     // Abre el archivo usuarios.txt en modo de lectura y escritura
     FILE *archivo = fopen(path, "r+");
     if (archivo == NULL) {
         perror("Error al abrir el archivo usuarios.txt");
+        pthread_mutex_unlock(&mutex_funciones);
         return -1;
     }
 
@@ -100,6 +113,7 @@ int borrar_linea(char *path, const char *usuario) {
     if (temporal == NULL) {
         perror("Error al abrir el archivo temporal.txt");
         fclose(archivo);
+        pthread_mutex_unlock(&mutex_funciones);
         return -1;
     }
 
@@ -137,11 +151,12 @@ int borrar_linea(char *path, const char *usuario) {
     // Renombra el archivo temporal.txt como el original
     if (rename("temporal.txt", path) != 0) {
         perror("Error al renombrar el archivo temporal.txt");
+        pthread_mutex_unlock(&mutex_funciones);
         return -1;
     }
+    pthread_mutex_unlock(&mutex_funciones);
 
     if (encontrado) {
-        printf("Usuario \"%s\" eliminado de %s", usuario, path);
         return 0;
     } else {
         printf("Usuario \"%s\" no encontrado en %s", usuario, path);
@@ -150,10 +165,13 @@ int borrar_linea(char *path, const char *usuario) {
 }
 
 int comprobar_usuario(char *path, char *usuario) {
+
+    pthread_mutex_lock(&mutex_funciones);
     // 0: no encontrado, 1: encontrado
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
         perror("Error al abrir el archivo\n");
+        pthread_mutex_unlock(&mutex_funciones);
         return -1;
     }
 
@@ -170,6 +188,7 @@ int comprobar_usuario(char *path, char *usuario) {
         if (strcmp(token, usuario) == 0) {
             // Si coincide, cerrar el archivo y devolver verdadero
             fclose(fp);
+            pthread_mutex_unlock(&mutex_funciones);
             return 1;
         }
     }
@@ -177,6 +196,7 @@ int comprobar_usuario(char *path, char *usuario) {
     // Cerrar el archivo
     fclose(fp);
     // Si no se encuentra el nombre de usuario, devolver falso
+    pthread_mutex_unlock(&mutex_funciones);
     return 0;
 }
 
@@ -248,12 +268,8 @@ int recibir_mensaje(int s_local, char *mensaje_recibido){
         }
         valor_convertido = valor_ascii;
         mensaje_recibido[i] = valor_convertido;
-        // printf("Valor i: %d", valor_ascii);
-        // printf("Valor convertido: %c", valor_convertido);
-        // printf("Mensaje recibido: %c", mensaje_recibido[i]);
         
     }
-    printf("mensaje recibido: %s", mensaje_recibido);
     return 0;
 }
 
@@ -312,7 +328,7 @@ int borrar_archivo(const char *username, const char *nombre_archivo) {
 
     // Intentar borrar el archivo
     if (remove(ruta_archivo) == 0) {
-        printf("El archivo \"%s\" ha sido borrado para el usuario \"%s\".\n", nombre_archivo, username);
+        printf("El archivo \"%s\" ha sido borrado para el usuario \"%s\"", nombre_archivo, username);
         return 0; // Borrado exitoso
     } else {
         perror("Error al borrar el archivo");
@@ -346,7 +362,8 @@ int tratar_peticion(int *s) {
     int s_local;
     char *op_recibido = (char *)malloc(256);
     char *fecha_recibida = (char *)malloc(256);
-    char *valor_total = (char *)malloc(256);
+    char *usuario = (char *)malloc(256);
+    char *filename = (char *)malloc(256);
     int devolucion;
     
     pthread_mutex_lock(&mutex_mensaje);
@@ -362,8 +379,16 @@ int tratar_peticion(int *s) {
     recibir_mensaje(s_local, fecha_recibida);
 
     // Recibir usuario
-    recibir_mensaje(s_local, valor_total);
-    printf("OPERATION FROM %s", valor_total);
+    recibir_mensaje(s_local, usuario);
+    printf("%s FROM %s",op_recibido, usuario);
+
+    // Recibir filename
+    if (strcmp(op_recibido, "PUBLISH")== 0 || strcmp(op_recibido, "DELETE") == 0){
+        recibir_mensaje(s_local, filename);
+    }
+    else{
+        filename = "\b";
+    }
 
     //Enviar argumentos al servidor RPC
     CLIENT *clnt;
@@ -378,7 +403,7 @@ int tratar_peticion(int *s) {
         exit (1);
     }
     
-    retval_1 = register_1(valor_total, op_recibido, fecha_recibida, &result_1, clnt);
+    retval_1 = operation_1(usuario, op_recibido, filename, fecha_recibida, &result_1, clnt);
     if (retval_1 != RPC_SUCCESS) {
         clnt_perror (clnt, "call failed");
     }
@@ -387,10 +412,9 @@ int tratar_peticion(int *s) {
     if (strcmp("REGISTER", op_recibido) == 0){
         
         int usuario_existente;
-        printf("Realizar registro");
 
         
-        usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        usuario_existente = comprobar_usuario("usuarios.txt", usuario);
 
         if (usuario_existente == 1) {
             // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
@@ -402,7 +426,7 @@ int tratar_peticion(int *s) {
 
         } else if (usuario_existente == 0){
             // Abrir el archivo de texto para escritura (agregar al final)
-            int escribir = escribir_archivo("usuarios.txt", valor_total);
+            int escribir = escribir_archivo("usuarios.txt", usuario);
             if (escribir == -1) {
                 devolucion = 50;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -411,7 +435,7 @@ int tratar_peticion(int *s) {
             }
             
             // Crear directorio para el usuario
-            crear_directorio_para_usuario(valor_total);
+            crear_directorio_para_usuario(usuario);
 
             // Enviar mensaje al cliente de que el registro fue exitoso
             devolucion = 48;
@@ -420,17 +444,13 @@ int tratar_peticion(int *s) {
     }
 
     if (strcmp("UNREGISTER", op_recibido) == 0){
-        printf("Realizar baja de registro");
-        
-
-        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        int usuario_existente = comprobar_usuario("usuarios.txt", usuario);
 
         if (usuario_existente == 1) {
             // Eliminar directorio del usuario
             char path[256];
-            snprintf(path, sizeof(path), "usuarios/%s", valor_total);
+            snprintf(path, sizeof(path), "usuarios/%s", usuario);
             if (eliminar_directorio(path) == 0) {
-                printf("Archivos del directorio eliminados para el usuario %s", valor_total);
             } else {
                 perror("Error al eliminar el directorio");
             }
@@ -439,16 +459,16 @@ int tratar_peticion(int *s) {
                 return -1;
             }
 
-            int eliminar = borrar_linea("usuarios.txt", valor_total);
+            int eliminar = borrar_linea("usuarios.txt", usuario);
             if (eliminar == -1){
                 devolucion = 51;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
-                close(s_local); 
+                close(s_local);
                 return -1;
             }
-            // Enviar mensaje al cliente de que el registro fue exitoso
-            devolucion = 48;
-            sendMessage(s_local, (char *)&devolucion, sizeof(char));
+
+            // Realizar disconnect
+            strcpy(op_recibido, "DISCONNECT");
         } else if(usuario_existente == 0){
             // Enviar mensaje al cliente de que el nombre de usuario ya está en uso
             devolucion = 49;
@@ -460,7 +480,6 @@ int tratar_peticion(int *s) {
     if(strcmp("CONNECT", op_recibido) == 0){
         char *port = (char *)malloc(256);
         char *ip = (char *)malloc(256);
-        printf("Realizar conexión");
 
         recibir_mensaje(s_local, port);
 
@@ -468,7 +487,7 @@ int tratar_peticion(int *s) {
         
 
         int usuario_existente;
-        usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        usuario_existente = comprobar_usuario("usuarios.txt", usuario);
 
         // Si el usuario no existe
         if (usuario_existente == 0){
@@ -477,9 +496,9 @@ int tratar_peticion(int *s) {
             return -1;
         }            
 
-        int connected = comprobar_usuario("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", usuario);
         if (connected == 0) {
-            int escribir = escribir_usuario_ip_port("conectados.txt", valor_total, ip, port);
+            int escribir = escribir_usuario_ip_port("conectados.txt", usuario, ip, port);
             if (escribir == -1){
                 devolucion = 51;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -496,11 +515,9 @@ int tratar_peticion(int *s) {
     }
 
     if(strcmp("DISCONNECT", op_recibido) == 0){
-        printf("Realizar desconexión");
-
-        int connected = comprobar_usuario("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", usuario);
         if (connected == 1) {
-            int eliminar = borrar_linea("conectados.txt", valor_total);
+            int eliminar = borrar_linea("conectados.txt", usuario);
             if (eliminar == -1){
                 devolucion = 51;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -517,36 +534,32 @@ int tratar_peticion(int *s) {
     }
 
     if(strcmp("PUBLISH", op_recibido) == 0){
-        char *fileName = (char *)malloc(256);
         char *fileContent = (char *)malloc(256);
-        printf("Realizar publicación");
-        
-        recibir_mensaje(s_local, fileName);
         
         recibir_mensaje(s_local, fileContent);
-        
-        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+
+        int usuario_existente = comprobar_usuario("usuarios.txt", usuario);
         if (usuario_existente == 0) {
                 devolucion = 49;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
                 return -1;
         }
         
-        int connected = comprobar_usuario("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", usuario);
         if (connected == 0) {
             devolucion = 50;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
             return -1;
         }
-        
-        int archivo_existente = verificar_archivo_existente(valor_total, fileName);
+            
+        int archivo_existente = verificar_archivo_existente(usuario, filename);
         if (archivo_existente == 1) {
             devolucion = 51;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
             return -1;
 
         }else if(archivo_existente == 0){
-            int crear = crear_archivo_descripcion(valor_total, fileName, fileContent);
+            int crear = crear_archivo_descripcion(usuario, filename, fileContent);
             if (crear == -1){
                 devolucion = 52;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -556,9 +569,9 @@ int tratar_peticion(int *s) {
             char path[256];
             char content[256];
             strcpy(path, "usuarios/");
-            strcat(path, valor_total);
+            strcat(path, usuario);
             strcat(path, "/lista_archivos.txt");
-            strcpy(content, fileName);
+            strcpy(content, filename);
             strcat(content, " \"");
             strcat(content, fileContent);
             strcat(content, "\"");
@@ -569,38 +582,33 @@ int tratar_peticion(int *s) {
     }
 
     if (strcmp("DELETE", op_recibido) == 0){
-        char *fileName = (char *)malloc(256);
-        printf("Realizar publicación");
-        
-        recibir_mensaje(s_local, fileName);
-
-        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        int usuario_existente = comprobar_usuario("usuarios.txt", usuario);
         if (usuario_existente == 0) {
                 devolucion = 49;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
                 return -1;
         }
         
-        int connected = comprobar_usuario("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", usuario);
         if (connected == 0) {
             devolucion = 50;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
             return -1;
         }
 
-        int archivo_existente = verificar_archivo_existente(valor_total, fileName);
+        int archivo_existente = verificar_archivo_existente(usuario, filename);
         if (archivo_existente == 0) {
             devolucion = 51;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
             return -1;
 
         }else if(archivo_existente == 1){
-            int borrar = borrar_archivo(valor_total, fileName);
+            int borrar = borrar_archivo(usuario, filename);
             char path[256];
             strcpy(path, "usuarios/");
-            strcat(path, valor_total);
+            strcat(path, usuario);
             strcat(path, "/lista_archivos.txt");
-            borrar_linea(path, fileName);
+            borrar_linea(path, filename);
             if (borrar == -1){
                 devolucion = 52;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -615,16 +623,14 @@ int tratar_peticion(int *s) {
     if(strcmp("LIST_USERS", op_recibido) == 0){
         // Listar usuarios
 
-        printf("Listar usuarios para %s", valor_total);
-
-        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        int usuario_existente = comprobar_usuario("usuarios.txt", usuario);
         if (usuario_existente == 0) {
                 devolucion = 49;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
                 return -1;
         }
 
-        int connected = comprobar_usuario("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", usuario);
         if (connected == 0) {
             devolucion = 50;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -652,7 +658,6 @@ int tratar_peticion(int *s) {
             n_lineas++;
         }
         devolucion = n_lineas;
-        printf("Número de líneas: %d", devolucion);
         sendMessage(s_local, (char *)&devolucion, sizeof(char));
         sleep(0.1);
 
@@ -669,7 +674,6 @@ int tratar_peticion(int *s) {
             token = strtok(linea, " ");
             // Imprimir cada token
             while (token != NULL) {
-                printf("Token: %s", token);
                 for (int i = 0; token[i] != '\0'; i++) {
                     // printf("Caracter %d: %c", i+1, token[i]);
                     sendMessage(s_local, (char *)&token[i], sizeof(char));
@@ -698,7 +702,7 @@ int tratar_peticion(int *s) {
         char *usuario_deseado = (char *)malloc(256);
 
         // Comprobar que el usuario actual existe
-        int usuario_existente = comprobar_usuario("usuarios.txt", valor_total);
+        int usuario_existente = comprobar_usuario("usuarios.txt", usuario);
         if (usuario_existente == 0) {
                 devolucion = 49;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -706,7 +710,7 @@ int tratar_peticion(int *s) {
         }
 
         // Comprobar que el usuario actual está conectado
-        int connected = comprobar_usuario("conectados.txt", valor_total);
+        int connected = comprobar_usuario("conectados.txt", usuario);
         if (connected == 0) {
             devolucion = 50;
             sendMessage(s_local, (char *)&devolucion, sizeof(char));
@@ -714,7 +718,7 @@ int tratar_peticion(int *s) {
         }
 
         recibir_mensaje(s_local, usuario_deseado);
-        printf("Listar contenido de %s para %s", usuario_deseado, valor_total);
+        printf("Listar contenido de %s para %s", usuario_deseado, usuario);
 
         // Comprobar que el usuario al que se quiere acceder existe
         usuario_existente = comprobar_usuario("usuarios.txt", usuario_deseado);
@@ -731,11 +735,9 @@ int tratar_peticion(int *s) {
         char path[128];
         strcpy(path, "usuarios/");
         strcat(path, usuario_deseado);
-        printf("Path: %s", path);
         int file_count = contar_numero_archivos(path);
 
         // Imprimir el número de archivos
-        printf("Número de archivos en el directorio: %d", file_count);
         devolucion = file_count - 1;
         sendMessage(s_local, (char *)&devolucion, sizeof(char));
         sleep(0.1);
@@ -752,7 +754,6 @@ int tratar_peticion(int *s) {
                 if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
                     // Imprimir el nombre del archivo
                     strcpy(filename, ent->d_name);
-                    printf("Nombre del archivo: %s\n", filename);
 
                     // Abrir el archivo
                     FILE *archivo;
@@ -761,7 +762,6 @@ int tratar_peticion(int *s) {
                     strcpy(filename_path, path);
                     strcat(filename_path, "/");
                     strcat(filename_path, ent->d_name);
-                    printf("Filename: %s", filename_path);
                     archivo = fopen(filename_path, "r");
                     
                     // Verificar si se pudo abrir el archivo
@@ -778,7 +778,6 @@ int tratar_peticion(int *s) {
                             fclose(archivo);
                             continue; // Saltar a la siguiente iteración
                         }
-                        printf("Descripción: %s\n", description);
                         // Cerrar el archivo
                         fclose(archivo);
                         char message[516];
@@ -858,8 +857,7 @@ int main(int argc, char *argv[]){
 
 	// Inicializar mutex y variables condicionales
     pthread_mutex_init(&mutex_mensaje, NULL);
-	pthread_mutex_init(&mutex_lista1, NULL);
-    pthread_mutex_init(&mutex_lista2, NULL);
+    pthread_mutex_init(&mutex_funciones, NULL);
 	pthread_cond_init(&cond_mensaje, NULL);
 	pthread_attr_init(&t_attr);
     pthread_attr_setdetachstate(&t_attr, PTHREAD_CREATE_DETACHED);
@@ -887,8 +885,7 @@ int main(int argc, char *argv[]){
 	
 	// Destruir los mutex y las variables condicionales
 	pthread_mutex_destroy(&mutex_mensaje);
-	pthread_mutex_destroy(&mutex_lista1);
-	pthread_mutex_destroy(&mutex_lista2);
+    pthread_mutex_destroy(&mutex_funciones);
 	pthread_cond_destroy(&cond_mensaje);
 
 	return 0;

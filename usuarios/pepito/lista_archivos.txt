@@ -1,0 +1,2 @@
+arch "de pepito"
+mi_yo "soy un señor"

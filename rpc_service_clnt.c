@@ -10,99 +10,14 @@
 static struct timeval TIMEOUT = { 25, 0 };
 
 enum clnt_stat 
-register_1(char *arg1, char *arg2, char *arg3, int *clnt_res,  CLIENT *clnt)
+operation_1(char *arg1, char *arg2, char *arg3, char *arg4, int *clnt_res,  CLIENT *clnt)
 {
-	register_1_argument arg;
-	arg.arg1 = arg1;
-	arg.arg2 = arg2;
-	arg.arg3 = arg3;
-	return (clnt_call (clnt, REGISTER, (xdrproc_t) xdr_register_1_argument, (caddr_t) &arg,
-		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
-		TIMEOUT));
-}
-
-enum clnt_stat 
-unregister_1(char *arg1, char *arg2, char *arg3, int *clnt_res,  CLIENT *clnt)
-{
-	unregister_1_argument arg;
-	arg.arg1 = arg1;
-	arg.arg2 = arg2;
-	arg.arg3 = arg3;
-	return (clnt_call (clnt, UNREGISTER, (xdrproc_t) xdr_unregister_1_argument, (caddr_t) &arg,
-		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
-		TIMEOUT));
-}
-
-enum clnt_stat 
-connect_1(char *arg1, char *arg2, char *arg3, int *clnt_res,  CLIENT *clnt)
-{
-	connect_1_argument arg;
-	arg.arg1 = arg1;
-	arg.arg2 = arg2;
-	arg.arg3 = arg3;
-	return (clnt_call (clnt, CONNECT, (xdrproc_t) xdr_connect_1_argument, (caddr_t) &arg,
-		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
-		TIMEOUT));
-}
-
-enum clnt_stat 
-disconnect_1(char *arg1, char *arg2, char *arg3, int *clnt_res,  CLIENT *clnt)
-{
-	disconnect_1_argument arg;
-	arg.arg1 = arg1;
-	arg.arg2 = arg2;
-	arg.arg3 = arg3;
-	return (clnt_call (clnt, DISCONNECT, (xdrproc_t) xdr_disconnect_1_argument, (caddr_t) &arg,
-		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
-		TIMEOUT));
-}
-
-enum clnt_stat 
-publish_1(char *arg1, char *arg2, char *arg3, char *arg4, int *clnt_res,  CLIENT *clnt)
-{
-	publish_1_argument arg;
+	operation_1_argument arg;
 	arg.arg1 = arg1;
 	arg.arg2 = arg2;
 	arg.arg3 = arg3;
 	arg.arg4 = arg4;
-	return (clnt_call (clnt, PUBLISH, (xdrproc_t) xdr_publish_1_argument, (caddr_t) &arg,
-		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
-		TIMEOUT));
-}
-
-enum clnt_stat 
-delete_1(char *arg1, char *arg2, char *arg3, char *arg4, int *clnt_res,  CLIENT *clnt)
-{
-	delete_1_argument arg;
-	arg.arg1 = arg1;
-	arg.arg2 = arg2;
-	arg.arg3 = arg3;
-	arg.arg4 = arg4;
-	return (clnt_call (clnt, DELETE, (xdrproc_t) xdr_delete_1_argument, (caddr_t) &arg,
-		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
-		TIMEOUT));
-}
-
-enum clnt_stat 
-list_users_1(char *arg1, char *arg2, char *arg3, int *clnt_res,  CLIENT *clnt)
-{
-	list_users_1_argument arg;
-	arg.arg1 = arg1;
-	arg.arg2 = arg2;
-	arg.arg3 = arg3;
-	return (clnt_call (clnt, LIST_USERS, (xdrproc_t) xdr_list_users_1_argument, (caddr_t) &arg,
-		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
-		TIMEOUT));
-}
-
-enum clnt_stat 
-list_content_1(char *arg1, char *arg2, char *arg3, int *clnt_res,  CLIENT *clnt)
-{
-	list_content_1_argument arg;
-	arg.arg1 = arg1;
-	arg.arg2 = arg2;
-	arg.arg3 = arg3;
-	return (clnt_call (clnt, LIST_CONTENT, (xdrproc_t) xdr_list_content_1_argument, (caddr_t) &arg,
+	return (clnt_call (clnt, OPERATION, (xdrproc_t) xdr_operation_1_argument, (caddr_t) &arg,
 		(xdrproc_t) xdr_int, (caddr_t) clnt_res,
 		TIMEOUT));
 }

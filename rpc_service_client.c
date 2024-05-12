@@ -13,46 +13,10 @@ server_1(char *host)
 	CLIENT *clnt;
 	enum clnt_stat retval_1;
 	int result_1;
-	char *register_1_arg1;
-	char *register_1_arg2;
-	char *register_1_arg3;
-	enum clnt_stat retval_2;
-	int result_2;
-	char *unregister_1_arg1;
-	char *unregister_1_arg2;
-	char *unregister_1_arg3;
-	enum clnt_stat retval_3;
-	int result_3;
-	char *connect_1_arg1;
-	char *connect_1_arg2;
-	char *connect_1_arg3;
-	enum clnt_stat retval_4;
-	int result_4;
-	char *disconnect_1_arg1;
-	char *disconnect_1_arg2;
-	char *disconnect_1_arg3;
-	enum clnt_stat retval_5;
-	int result_5;
-	char *publish_1_arg1;
-	char *publish_1_arg2;
-	char *publish_1_arg3;
-	char *publish_1_arg4;
-	enum clnt_stat retval_6;
-	int result_6;
-	char *delete_1_arg1;
-	char *delete_1_arg2;
-	char *delete_1_arg3;
-	char *delete_1_arg4;
-	enum clnt_stat retval_7;
-	int result_7;
-	char *list_users_1_arg1;
-	char *list_users_1_arg2;
-	char *list_users_1_arg3;
-	enum clnt_stat retval_8;
-	int result_8;
-	char *list_content_1_arg1;
-	char *list_content_1_arg2;
-	char *list_content_1_arg3;
+	char *operation_1_arg1;
+	char *operation_1_arg2;
+	char *operation_1_arg3;
+	char *operation_1_arg4;
 
 #ifndef	DEBUG
 	clnt = clnt_create (host, SERVER, SERVER_VERS, "udp");
@@ -62,36 +26,8 @@ server_1(char *host)
 	}
 #endif	/* DEBUG */
 
-	retval_1 = register_1(register_1_arg1, register_1_arg2, register_1_arg3, &result_1, clnt);
+	retval_1 = operation_1(operation_1_arg1, operation_1_arg2, operation_1_arg3, operation_1_arg4, &result_1, clnt);
 	if (retval_1 != RPC_SUCCESS) {
-		clnt_perror (clnt, "call failed");
-	}
-	retval_2 = unregister_1(unregister_1_arg1, unregister_1_arg2, unregister_1_arg3, &result_2, clnt);
-	if (retval_2 != RPC_SUCCESS) {
-		clnt_perror (clnt, "call failed");
-	}
-	retval_3 = connect_1(connect_1_arg1, connect_1_arg2, connect_1_arg3, &result_3, clnt);
-	if (retval_3 != RPC_SUCCESS) {
-		clnt_perror (clnt, "call failed");
-	}
-	retval_4 = disconnect_1(disconnect_1_arg1, disconnect_1_arg2, disconnect_1_arg3, &result_4, clnt);
-	if (retval_4 != RPC_SUCCESS) {
-		clnt_perror (clnt, "call failed");
-	}
-	retval_5 = publish_1(publish_1_arg1, publish_1_arg2, publish_1_arg3, publish_1_arg4, &result_5, clnt);
-	if (retval_5 != RPC_SUCCESS) {
-		clnt_perror (clnt, "call failed");
-	}
-	retval_6 = delete_1(delete_1_arg1, delete_1_arg2, delete_1_arg3, delete_1_arg4, &result_6, clnt);
-	if (retval_6 != RPC_SUCCESS) {
-		clnt_perror (clnt, "call failed");
-	}
-	retval_7 = list_users_1(list_users_1_arg1, list_users_1_arg2, list_users_1_arg3, &result_7, clnt);
-	if (retval_7 != RPC_SUCCESS) {
-		clnt_perror (clnt, "call failed");
-	}
-	retval_8 = list_content_1(list_content_1_arg1, list_content_1_arg2, list_content_1_arg3, &result_8, clnt);
-	if (retval_8 != RPC_SUCCESS) {
 		clnt_perror (clnt, "call failed");
 	}
 #ifndef	DEBUG

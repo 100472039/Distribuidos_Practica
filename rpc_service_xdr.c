@@ -6,55 +6,7 @@
 #include "rpc_service.h"
 
 bool_t
-xdr_register_1_argument (XDR *xdrs, register_1_argument *objp)
-{
-	 if (!xdr_string (xdrs, &objp->arg1, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg2, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg3, ~0))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_unregister_1_argument (XDR *xdrs, unregister_1_argument *objp)
-{
-	 if (!xdr_string (xdrs, &objp->arg1, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg2, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg3, ~0))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_connect_1_argument (XDR *xdrs, connect_1_argument *objp)
-{
-	 if (!xdr_string (xdrs, &objp->arg1, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg2, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg3, ~0))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_disconnect_1_argument (XDR *xdrs, disconnect_1_argument *objp)
-{
-	 if (!xdr_string (xdrs, &objp->arg1, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg2, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg3, ~0))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_publish_1_argument (XDR *xdrs, publish_1_argument *objp)
+xdr_operation_1_argument (XDR *xdrs, operation_1_argument *objp)
 {
 	 if (!xdr_string (xdrs, &objp->arg1, ~0))
 		 return FALSE;
@@ -63,44 +15,6 @@ xdr_publish_1_argument (XDR *xdrs, publish_1_argument *objp)
 	 if (!xdr_string (xdrs, &objp->arg3, ~0))
 		 return FALSE;
 	 if (!xdr_string (xdrs, &objp->arg4, ~0))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_delete_1_argument (XDR *xdrs, delete_1_argument *objp)
-{
-	 if (!xdr_string (xdrs, &objp->arg1, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg2, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg3, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg4, ~0))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_list_users_1_argument (XDR *xdrs, list_users_1_argument *objp)
-{
-	 if (!xdr_string (xdrs, &objp->arg1, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg2, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg3, ~0))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_list_content_1_argument (XDR *xdrs, list_content_1_argument *objp)
-{
-	 if (!xdr_string (xdrs, &objp->arg1, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg2, ~0))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->arg3, ~0))
 		 return FALSE;
 	return TRUE;
 }
