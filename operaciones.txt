@@ -1,4 +1,0 @@
-0: registro
-1: borrar registro
-2: publicar archivo
-3: eliminar archivo

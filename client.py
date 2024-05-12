@@ -312,7 +312,7 @@ class client :
             elif resultado == "2":
                 print("c> DELETE FAIL, USER NOT CONNECTED")
             elif resultado == "3":
-                print("c> DELETE FAIL, CONTENT NOT PUBISHED")
+                print("c> DELETE FAIL, CONTENT NOT PUBLISHED")
             elif resultado == "4":
                 print("c> DELETE FAIL")
         finally:
@@ -614,10 +614,10 @@ class client :
                             client.register(line[1])
                             client.connect(line[1])
                             # Crea diez archivos con contenido aleatorio en su interior
-                            for i in range(10):
+                            for i in range(5):
                                 caracteres = string.ascii_letters + string.digits + string.punctuation + " "
                                 filename = "archivo"+str(i)
-                                description = "".join(random.choice(caracteres) for _ in range(128))
+                                description = "".join(random.choice(caracteres) for _ in range(32))
                                 client.publish(filename, description)
                             # Desconecta al usuario una vez termina de crearlo
                             client.disconnect(line[1])

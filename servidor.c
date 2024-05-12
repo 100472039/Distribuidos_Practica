@@ -497,7 +497,7 @@ int tratar_peticion(int *s) {
 
             int eliminar = borrar_linea("usuarios.txt", usuario);
             if (eliminar == -1){
-                devolucion = 51;
+                devolucion = 50;
                 sendMessage(s_local, (char *)&devolucion, sizeof(char));
                 close(s_local);
                 return -1;
@@ -505,10 +505,15 @@ int tratar_peticion(int *s) {
 
             // Realizar disconnect del usuario
             if (comprobar_usuario("conectados.txt", usuario) == 1){
-                strcpy(op_recibido, "DISCONNECT");
-            }else{
-                devolucion = 48;
-                sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                int eliminar = borrar_linea("conectados.txt", usuario);
+                if (eliminar == -1){
+                    devolucion = 50;
+                    sendMessage(s_local, (char *)&devolucion, sizeof(char));
+                    close(s_local);
+                    return -1;
+                }
+            devolucion = 48;
+            sendMessage(s_local, (char *)&devolucion, sizeof(char));
             }
         } else if(usuario_existente == 0){
             // Enviar mensaje al cliente de que el nombre de usuario ya está en uso

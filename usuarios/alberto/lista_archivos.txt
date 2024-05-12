@@ -1,6 +1,0 @@
-yo "soy un señor"
-pi "es extremadisimamente largo por favor exijo un minimo de ayuda"
-extra "necesito mas archivos"
-prueba "esta es la prueba definitiva"
-ayuda "no conozco a las ovejas"
-conozco "a un manati con dos colas"
