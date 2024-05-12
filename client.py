@@ -49,28 +49,42 @@ class client :
 
         return client.RC.ERROR
     
+    
     @staticmethod
     def connect_with_server():
-        # Conectar con el socket del servidor
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            
-        # Comprobar que el formato es correcto
-        arguments = len(sys.argv)
-        if arguments < 3:
-            print('Uso: client_calc  <host> <port>')
-            exit()
+        connection_mutex = threading.Lock()
 
-        # Tomar ip y puerto
-        server_address = (sys.argv[2], int(sys.argv[4]))
-        sock.connect(server_address)
-        client._server_sock = sock
+        connection_mutex.acquire()
+        try:
+            # Conectar con el socket del servidor
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                
+            # Comprobar que el formato es correcto
+            arguments = len(sys.argv)
+            if arguments < 3:
+                print('Uso: client_calc  <host> <port>')
+                exit()
+
+            # Tomar ip y puerto
+            server_address = (sys.argv[2], int(sys.argv[4]))
+            sock.connect(server_address)
+            client._server_sock = sock
+        finally:
+            connection_mutex.release()
+    
     
     @staticmethod
     def send(message):
+        mutex = threading.Lock()
+        mutex.acquire()
+    
         # Enviar un mensaje de texto al servidor
-        for character in message:
-            client._server_sock.sendall(character.encode())
-        client._server_sock.sendall(b'\0')
+        try:
+            for character in message:
+                client._server_sock.sendall(character.encode())
+            client._server_sock.sendall(b'\0')
+        finally:
+            mutex.release()
 
     @staticmethod
     def register(user):
@@ -110,6 +124,7 @@ class client :
         fecha = client.get_datetime_from_service()
         
         try:
+            
             # Enviar argumentos
             client.send(register_op)
 
@@ -137,9 +152,10 @@ class client :
     
     @staticmethod
     def connect(user):
+        mutex = threading.Lock()
         # Obtener un puerto libre para el cliente
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind(('localhost', 0))
+        server_socket.bind((sys.argv[2], 0))
         ip, port = server_socket.getsockname()
             
         # Conectar con el servidor
@@ -149,6 +165,7 @@ class client :
         fecha = client.get_datetime_from_service()
         
         try:
+            
             # Enviar argumentos
             client.send(register_op)
 
@@ -159,19 +176,23 @@ class client :
             # Enviar ip y puerto
             client.send(str(port))
             client.send(ip)
-            
+
             # Recibir resultado
             resultado = client._server_sock.recv(1024)
             resultado = resultado.decode()
 
             if resultado == "0":
-                # Crear hilo y socket para recibir mensajes
-                client.thread_running = True
-                server_socket.listen(5)
-                client.thread = threading.Thread(target = client.handle_requests, args=(server_socket,), daemon=True)
-                client.thread.start()
-                client._user = user
-                print("c> CONNECT OK")
+                mutex.acquire()
+                try:
+                    # Crear hilo y socket para recibir mensajes
+                    client.thread_running = True
+                    server_socket.listen(5)
+                    client.thread = threading.Thread(target = client.handle_requests, args=(server_socket,), daemon=True)
+                    client.thread.start()
+                    client._user = user
+                    print("c> CONNECT OK")
+                finally:
+                    mutex.release() 
             elif resultado == "1":
                 print("c> CONNECT FAIL, USER DOES NOT EXIST")
             elif resultado == "2":
@@ -187,6 +208,7 @@ class client :
     
     @staticmethod
     def  disconnect(user):
+        mutex = threading.Lock()
         # Desconectar usuario
         client.connect_with_server()
         register_op = "DISCONNECT"
@@ -205,14 +227,20 @@ class client :
             resultado = resultado.decode()
 
             if resultado == "0":
-                # Eliminar al usuario y el hilo
-                if client._user == user:
-                    client.thread_running = False
-                    client._user = None
-                print("c> DISCONNECT OK")
+                mutex.acquire()
+                try:
+                    # Eliminar al usuario y el hilo
+                    if client._user == user:
+                        client.thread_running = False
+                        client._user = None
+                        print("c> DISCONNECT OK")
+                finally:   
+                    mutex.release() 
             elif resultado == "1":
-                print("c> USER DOES NOT EXIST")
+                print("c> DISCONNECT FAIL / USER DOES NOT EXIST")
             elif resultado == "2":
+                print("c> DISCONNECT FAIL / USER NOT CONNECTED")    
+            elif resultado == "3":
                 print("c> DISCONNECT FAIL")
         finally:
             client._server_sock.close()
@@ -293,12 +321,14 @@ class client :
 
     @staticmethod
     def  listusers() :
+        mutex = threading.Lock()
         #  Listar usuarios conectados
         client.connect_with_server()
         register_op = "LIST_USERS"
         fecha = client.get_datetime_from_service()
         
         try:
+            mutex.acquire()
             # Enviar argumentos
             client.send(register_op)
 
@@ -344,6 +374,7 @@ class client :
             else:
                 print("c> LIST_USERS FAIL")
         finally:
+            mutex.release()
             client._server_sock.close()
         return client.RC.ERROR
 
@@ -582,11 +613,13 @@ class client :
                                 client.disconnect(client._user)
                             client.register(line[1])
                             client.connect(line[1])
+                            # Crea diez archivos con contenido aleatorio en su interior
                             for i in range(10):
                                 caracteres = string.ascii_letters + string.digits + string.punctuation + " "
                                 filename = "archivo"+str(i)
                                 description = "".join(random.choice(caracteres) for _ in range(128))
                                 client.publish(filename, description)
+                            # Desconecta al usuario una vez termina de crearlo
                             client.disconnect(line[1])
                     else :
                         print("Error: command " + line[0] + " not valid.")
